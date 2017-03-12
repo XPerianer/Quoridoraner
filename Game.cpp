@@ -1,18 +1,11 @@
 #include "Game.h"
-
-
-
 Game::Game()
 {
-
 }
-
 
 Game::~Game()
 {
 }
-
-
 
 void Game::tryMove(short direction) {
 	
@@ -102,33 +95,6 @@ void Game::drawGame(wxPaintDC * dc) {
 
 int Game::negamax(Board *b, int depth, int alpha, int beta)
 {
-	transpositionTableLock.lock();
-	if (!(transpositionTable.find(b->stringify()) == transpositionTable.end())) { //Transposition table lookup
-		transpositions++;
-		evaluation e = transpositionTable[b->stringify()];
-		if (e.depth >= depth && e.b == *b) { //Only if it is really the same game situation
-			if (e.exact) {
-				transpositionTableLock.unlock();
-				return e.score;
-			}
-			if (e.lowerBound && e.score > alpha) {
-				alpha = e.score;
-			}
-			else if (e.upperBound && e.score < beta) {
-				beta = e.score;
-			}
-			if (alpha > beta) {
-				transpositionTableLock.unlock();
-				return e.score;
-			}
-		}
-		else {
-			msg += "wrong transposition";
-		}
-	}
-	transpositionTableLock.unlock();
-
-
 	if (b->checkWin(*b->activePlayer()) || b->checkWin(*b->unactivePlayer())) {
 		//msg += to_string(b->evaluate());
 		return b->evaluate();
@@ -137,9 +103,6 @@ int Game::negamax(Board *b, int depth, int alpha, int beta)
 		evaluated++;
 		return b->evaluate();
 	}
-	
-
-
 
 	queue<play> moves = b->possibleMoves();
 	int score = -10000;
@@ -159,25 +122,6 @@ int Game::negamax(Board *b, int depth, int alpha, int beta)
 		}
 		moves.pop();
 	}
-
-	//Transposition storage
-	evaluation node;
-	node.depth = depth;
-	if (score >= beta) {
-		node.lowerBound = true;
-	}
-	else if (score <= alpha) {
-		node.upperBound = true;
-	}
-	else {
-		node.exact = true;
-	}
-	node.b = *b;
-	node.score = score;
-	transpositionTableLock.lock();
-	transpositionTable.emplace(b->stringify(), node);
-	transpositionTableLock.unlock();
-	storedTranspositions++;
 
 	
 	return alpha;
@@ -232,7 +176,6 @@ void Game::computerMove() {
 	auto end = chrono::high_resolution_clock::now();
 	auto diff = end - start;
 	msg += "Total Computation Time: " + to_string(diff.count()) + "\n";
-	msg += "Stored Transpositions: " + to_string(storedTranspositions) + "\n";
 
 }
 

@@ -6,8 +6,8 @@ struct play {
 	int direction;
 	int x, y;
 	bool vert;
-	play::play(bool p, int d, int x, int y, bool v) : playerMove(p), direction(d), x(x), y(y), vert(v) {}
-	play::play() {};
+	play(bool p, int d, int x, int y, bool v) : playerMove(p), direction(d), x(x), y(y), vert(v) {}
+	play() {};
 };
 
 

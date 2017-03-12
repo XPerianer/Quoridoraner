@@ -134,7 +134,6 @@ bool Board::barrierConnected(int x, int y, bool vert) {
 }
 
 int Board::evaluate() { // positive is really good //evaluate light...
-	//auto start = chrono::high_resolution_clock::now();
 
 	if (checkWin(*activePlayer())) {
 		return -1000;
@@ -146,12 +145,8 @@ int Board::evaluate() { // positive is really good //evaluate light...
 	int barrierDiff = -activePlayer()->barriers + unactivePlayer()->barriers;
 	int moveDiff = floodFill(*activePlayer()) - floodFill(*unactivePlayer()); //-1 for the extra step the unactive Player has to go
 	//msg += "Evaluated: " + to_string(moveDiff * 10 + barrierDiff * 1);
-	
-	
-	return moveDiff * 1 + barrierDiff * 2;
 
-
-
+	return moveDiff * 10 + barrierDiff * 2;
 }
 
 int Board::floodFill(Player p) {
@@ -302,36 +297,6 @@ void Board::switchPlayer()
 	playerMove = !playerMove;
 }
 
-string Board::stringify()
-{
-	string s; // Store the game information all in one big string which will be hashed
-
-	if (playerMove) {
-		s += "o";
-	}
-	else {
-		s += "t";
-	}
-	s += to_string(activePlayer()->barriers) + " " + to_string(activePlayer()->x) + " " + to_string(activePlayer()->y) + " ";
-	s += to_string(unactivePlayer()->barriers) + " " + to_string(unactivePlayer()->x) + " " + to_string(unactivePlayer()->y) + " ";
-
-	for (int ix = 0; ix < 8; ix++) {
-		for (int iy = 0; iy < 8; iy++) {
-			if (barriers[0][ix][iy] == true)
-				s += "c";
-			else
-				s += "d";
-			if (barriers[1][ix][iy] == true)
-				s += "e";
-			else
-				s += "f";
-		}
-	}
-
-	//s += rand();
-	//msg += "stringify: " + s + "\n";
-	return s;
-}
 
 bool Board::operator==(Board c) {
 	if (playerMove != c.playerMove)
@@ -399,7 +364,5 @@ queue<play> Board::possibleMoves()
 		pq.push(q.front());
 		q.pop();
 	}
-
-
 	return pq;
 }

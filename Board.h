@@ -35,7 +35,7 @@ public:
 	bool barriers[2][8][8] = { false }; // [0=horizontally;1=vertical][x][y]
 	Player one, two;
 
-	bool Board::operator==(Board c);
+	bool operator==(Board c);
 
 };
 
