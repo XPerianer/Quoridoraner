@@ -8,6 +8,7 @@
 #include <queue>
 #include <chrono>
 #include <mutex>
+#include <bitset>
 
 using namespace std;
 
@@ -32,7 +33,6 @@ public:
 	void tryBarrier(int x, int y, bool vert);
 	int negamax(Board* b, int depth, int alpha, int beta);
 	void computerMove();
-
 
 };
 

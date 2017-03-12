@@ -3,8 +3,15 @@
 #include "play.h"
 #include <chrono>
 #include <queue>
+#include <bitset>
 
 using namespace std;
+
+struct Barrier{
+	Barrier(bool vert, int x, int y) : vert(vert), x(x), y(y) {}
+
+	bool vert; int x, y;
+};
 
 class Board
 {
@@ -15,10 +22,9 @@ public:
 	~Board();
 
 	Board(Board& b);
-	bool checkBarrier(int horizontal, int x, int y);
 	bool possible(short x, short y, short direction);
 	bool barrierPossible(int x, int y, bool vert);
-	bool barrierConnected(int x, int y, bool vert);
+
 	bool checkWin(Player p);
 	void switchPlayer();
 	int floodFill(Player p);
@@ -26,13 +32,19 @@ public:
 	void makePlay(play p);
 	void undoPlay(play p);
 
+	void placeBarrier(Barrier b);
+	void removeBarrier(Barrier b);
+
 	queue<play> possibleMoves();
 
-	string stringify();
 	Player* activePlayer();
 	Player* unactivePlayer();
 
-	bool barriers[2][8][8] = { false }; // [0=horizontally;1=vertical][x][y]
+	bitset<9> vBarriers[9] = {}; // 9*9 0 == you can move from there ; 1 == theres a barrier, can't pass //9th place unused for real data but helpful for ORing
+	bitset<9> hBarriers[8] = {}; // 9*8 Numbers are counted from top left to bot right
+
+	vector<Barrier> barriers;
+
 	Player one, two;
 
 	bool operator==(Board c);

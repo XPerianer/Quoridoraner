@@ -22,24 +22,9 @@ Board::Board(Board& b) {
 	two = b.two;
 	playerMove = b.playerMove;
 
-	for (int ix = 0; ix < 8; ix++) {
-		for (int iy = 0; iy < 8; iy++) {
-			barriers[0][ix][iy] = b.barriers[0][ix][iy];
-			barriers[1][ix][iy] = b.barriers[1][ix][iy];
-			
-		}
-	}
 	
 }
 
-bool Board::checkBarrier(int horizontal, int x, int y) {
-	if (x < 0 || x > 7 || y < 0 || y > 7) { //Wheres no game there can't be barriers
-		return false;
-	}
-	else {
-		return barriers[horizontal][x][y];
-	}
-}
 
 bool Board::possible(short x, short y, short direction)
 {
@@ -56,24 +41,19 @@ bool Board::possible(short x, short y, short direction)
 		return false;
 	}
 	else if (direction == 0) {
-		if (!checkBarrier(0, x - 1, y - 1) && !checkBarrier(0, x, y - 1)) {
-			return true;
-		}
+			return !hBarriers[y-1][x];
 	}
 	else if (direction == 2) { // go to bottom
-		if (!checkBarrier(0, x - 1, y) && !checkBarrier(0, x, y)) {
-			return true;
-		}
+			return !hBarriers[y][x];
+
 	}
 	else if (direction == 1) {
-		if (!checkBarrier(1, x, y - 1) && !checkBarrier(1, x, y)) {
-			return true;
-		}
+			return !vBarriers[y][x];
+
 	}
 	else if (direction == 3) {
-		if (!checkBarrier(1, x - 1, y - 1) && !checkBarrier(1, x - 1, y)) {
-			return true;
-		}
+			return !vBarriers[y][x-1];
+
 	}
 	return false;
 }
@@ -86,55 +66,34 @@ bool Board::barrierPossible(int x, int y, bool vert) {
 	if (activePlayer()->barriers <= 0) {
 		return false;
 	}
-	if (checkBarrier(0, x, y) || checkBarrier(1, x, y)) { //When barrier blocking each other
-		return false;
-	}
-	if ((vert && !checkBarrier(1, x, y + 1) && !checkBarrier(1, x, y - 1)) || (!vert && !checkBarrier(0, x - 1, y) && !checkBarrier(0, x + 1, y))) {
-		play p(false, -1, x, y, vert);
-		makePlay(p);
-		bool possible = true;
-		if (floodFill(one) == -1 || floodFill(two) == -1) { //Play blocks one Player
-			possible = false;
+
+    if(vert){ //If this happens it is impossible to place the Barrier, but it can still be the case that barriers are blocking each other
+        if(!possible(x,y,1) || !possible(x,y+1,1))
+            return false;
+    } else{
+        if(!possible(x,y,0) || !possible(x+1,y,0))
+            return false;
+    }
+
+    for(auto b = barriers.begin();b != barriers.end();b++){ //Barriers are blocking each other "in a cross"
+        if(b->vert != vert && x == b->x && y == b->y)
+            return false;
+    }
+
+    //Barrier is theoretical possible to place, now check if both players can win if it is placed
+    play p(false, -1, x, y, vert);
+    makePlay(p);
+    bool possible = true;
+    if (floodFill(one) == -1 || floodFill(two) == -1) { //Play blocks one Player
+        possible = false;
 			//msg += "fF(one) " + to_string(floodFill(one)) + " fF(two) " + to_string(floodFill(two)) + "\n";
-		}
-		undoPlay(p);
-		if (possible) {
-			return true;
-		}
-	}
-	return false;
+    }
+    undoPlay(p);
+    return possible;
 }
 
-bool Board::barrierConnected(int x, int y, bool vert) {
-
-	if (!vert) {
-		if (checkBarrier(true, x - 2, y) || checkBarrier(true, x + 2, y)) {
-			return true;
-		}
-		else if (checkBarrier(false, x - 1, y) || checkBarrier(false, x + 1, y) || checkBarrier(false, x - 1, y - 1) || checkBarrier(false, x, y - 1) || checkBarrier(false, x + 1, y - 1)) {
-			return true;
-		}
-		else if (checkBarrier(false, x - 1, y + 1) || checkBarrier(false, x, y + 1) || checkBarrier(false, x + 1, y + 1)) {
-			return true;
-		}
-	}
-	else {
-		if (checkBarrier(true, x, y + 2) || checkBarrier(true, x, y - 2)) {
-			return true;
-		}
-		else if (checkBarrier(false, x - 1, y - 1) || checkBarrier(false, x - 1, y) || checkBarrier(false, x - 1, y + 1)) {
-			return true;
-		}
-		else if (checkBarrier(false, x + 1, y - 1) || checkBarrier(false, x + 1, y) || checkBarrier(false, x + 1, y + 1)) {
-			return true;
-		}
-	}
-	return false;
-
-}
 
 int Board::evaluate() { // positive is really good //evaluate light...
-
 	if (checkWin(*activePlayer())) {
 		return -1000;
 	}
@@ -146,7 +105,7 @@ int Board::evaluate() { // positive is really good //evaluate light...
 	int moveDiff = floodFill(*activePlayer()) - floodFill(*unactivePlayer()); //-1 for the extra step the unactive Player has to go
 	//msg += "Evaluated: " + to_string(moveDiff * 10 + barrierDiff * 1);
 
-	return moveDiff * 10 + barrierDiff * 2;
+	return moveDiff * 1 + barrierDiff * 2;
 }
 
 int Board::floodFill(Player p) {
@@ -155,55 +114,43 @@ int Board::floodFill(Player p) {
 	if (p.playerOne) {
 		target = 8;
 	}
-	int f[9][9] = {};
-	struct node
-	{
-		int x, y;
-	};
-	queue<node> q;
+	int steps=0;
+    bitset<9> f[9] = {}; //Array is y-Coordinate, solo bits are x
+    bitset<9> new_f[9] = {};
+    f[p.y][p.x] = 1; //Now having a zeroed bitset with only a 1 at the player position
+    bool equal=true;
 
-	node start;
-	start.x = p.x;
-	start.y = p.y;
-	q.push(start);
-
-	f[p.x][p.y] = 1;
-
-	while (q.front().y != target) {
-		int xPos = q.front().x, yPos = q.front().y;
-
-		if (yPos > 0 && f[xPos][yPos - 1] == 0 && possible(xPos, yPos, 0)) {
-			f[xPos][yPos - 1] = f[xPos][yPos] + 1;
-			node n;
-			n.x = xPos; n.y = yPos - 1;
-			q.push(n);
-		}
-		if (yPos < 8 && f[xPos][yPos + 1] == 0 && possible(xPos, yPos, 2)) {
-			f[xPos][yPos + 1] = f[xPos][yPos] + 1;
-			node n;
-			n.x = xPos; n.y = yPos + 1;
-			q.push(n);
-		}
-		if (xPos < 8 && f[xPos + 1][yPos] == 0 && possible(xPos, yPos, 1)) {
-			f[xPos + 1][yPos] = f[xPos][yPos] + 1;
-			node n;
-			n.x = xPos + 1; n.y = yPos;
-			q.push(n);
-		}
-		if (xPos > 0 && f[xPos - 1][yPos] == 0 && possible(xPos, yPos, 3)) {
-			f[xPos - 1][yPos] = f[xPos][yPos] + 1;
-			node n;
-			n.x = xPos - 1; n.y = yPos;
-			q.push(n);
-		}
-		q.pop();
-		if (q.empty()) {
-			return -1; // unreachable
-		}
-	}
+    while(!equal){ //Flood everything
+        equal = true;
+        if(f[target] != 0){
+            return steps;
+        }
+        for(int i=0;i<9;i++){
+            if(f[i] != 0){
+                //Right Movement:
+                new_f[i] |= (~vBarriers[i] & f[i])>>1;
+                //Left Movement:
+                new_f[i] |= ((~vBarriers[i])<<1 & f[i])<<1;
+                //Top Movement:
+                if(i!= 0){
+                    new_f[i-1] |= (~hBarriers[i]) & f[i];
+                }
+                //Bot Movement:
+                if(i!=8){
+                    new_f[i+1] |= (~hBarriers[i+1] & f[i]);
+                }
+            }
+        }
+        steps++;
 
 
-	return f[q.front().x][q.front().y] - 1;
+        for(int i=0;i<9;i++){
+            if(f[i] != new_f[i]) {
+                f[i] = new_f[i];
+                equal = false;
+            }
+        }
+    }
 
 }
 
@@ -224,12 +171,7 @@ void Board::makePlay(play p) {
 	}
 	else {
 		activePlayer()->barriers--;
-		if (p.vert) {
-			barriers[1][p.x][p.y] = true;
-		}
-		else {
-			barriers[0][p.x][p.y] = true;
-		}
+		placeBarrier(Barrier(p.vert,p.x,p.y));
 	}
 	playerMove = !playerMove;
 }
@@ -253,12 +195,7 @@ void Board::undoPlay(play p) {
 	}
 	else {
 		activePlayer()->barriers++;
-		if (p.vert) {
-			barriers[1][p.x][p.y] = false;
-		}
-		else {
-			barriers[0][p.x][p.y] = false;
-		}
+        removeBarrier(Barrier(p.vert,p.x,p.y));
 	}
 
 }
@@ -308,14 +245,16 @@ bool Board::operator==(Board c) {
 	if (one.barriers != c.one.barriers || two.barriers != c.two.barriers)
 		return false;
 	
-	for (int ix = 0; ix < 8; ix++) {
-		for (int iy = 0; iy < 8; iy++) {
-			if (barriers[0][ix][iy] != c.barriers[0][ix][iy])
-				return false;
-			if (barriers[1][ix][iy] != c.barriers[1][ix][iy])
-				return false;
-		}
-	}
+	for(int i=0;i<8;i++){
+        if(hBarriers[i] != c.hBarriers[i])
+            return false;
+    }
+    for(int i=0;i<9;i++){
+        if(vBarriers[i] != c.vBarriers[i])
+            return false;
+    }
+
+    //If the Bitsets are the same the barriers have to be the same, or at least they block the same things
 
 	return true;
 }
@@ -342,27 +281,54 @@ queue<play> Board::possibleMoves()
 	for (int ix = 0; ix < 8; ix++) {
 		for (int iy = 0; iy < 8; iy++) {
 			if (barrierPossible(ix, iy, false)) {
-				if (barrierConnected(ix, iy, false)) {
-					pq.push(play(false, -1, ix, iy, false));
-				}
-				else {
+
 					q.push(play(false, -1, ix, iy, false));
-				}
+
 			}
 			if (barrierPossible(ix, iy, true)) {
-				if (barrierConnected(ix, iy, true)) {
-					pq.push(play(false, -1, ix, iy, true));
-				}
-				else {
+
 					q.push(play(false, -1, ix, iy, true));
-				}
+
 			}
 		}
 	}
 
-	while (!q.empty()) { //All moves are stored in the priority queue
-		pq.push(q.front());
-		q.pop();
-	}
-	return pq;
+	return q;
 }
+
+void Board::placeBarrier(Barrier b) {
+
+    barriers.push_back(b);
+    if(b.vert){
+        vBarriers[b.y][b.x] = 1;
+        vBarriers[b.y+1][b.x] = 1;
+    } else {
+        hBarriers[b.y][b.x] = 1;
+        hBarriers[b.y][b.x+1] = 1;
+
+    }
+
+}
+
+void Board::removeBarrier(Barrier b) {
+
+    if(b.vert){
+        vBarriers[b.y][b.x] = 0;
+        vBarriers[b.y+1][b.x] = 0;
+    } else {
+        hBarriers[b.y][b.x] = 0;
+        hBarriers[b.y][b.x+1] = 0;
+
+    }
+
+    for(auto br = barriers.begin();br != barriers.end();br++){ //Remove Barrier from the list of barriers
+        if(br->vert == b.vert && b.x == br->x && b.y == br->y){
+            barriers.erase(br);
+            return;
+        }
+
+    }
+
+
+}
+

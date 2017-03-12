@@ -35,14 +35,9 @@ void Game::tryMove(short direction) {
 
 void Game::tryBarrier(int x, int y, bool vert)
 {
-	if (vert && gameBoard.barrierPossible(x, y, vert)) {
+	if (gameBoard.barrierPossible(x, y, vert)) {
 
-		gameBoard.barriers[1][x][y] = true;
-		gameBoard.activePlayer()->barriers--;
-		gameBoard.switchPlayer();
-	}
-	else if (!vert && gameBoard.barrierPossible(x, y, vert)) {
-		gameBoard.barriers[0][x][y] = true;
+		gameBoard.placeBarrier(Barrier(vert, x, y));
 		gameBoard.activePlayer()->barriers--;
 		gameBoard.switchPlayer();
 	}
@@ -74,16 +69,18 @@ void Game::drawGame(wxPaintDC * dc) {
 	//Draw Barriers
 	dc->SetBrush(wxBrush(wxColor("grey")));
 
-	for (int i = 0; i < 8; i++) {
-		for (int j = 0; j < 8; j++) {
-			if (gameBoard.barriers[0][i][j]) {
-				dc->DrawRectangle(20 + i * 70, 70 + j * 70 + 3, 120, 14);
-			}
-			if (gameBoard.barriers[1][i][j]) {
-				dc->DrawRectangle(70 + i * 70 + 3, 20 + j * 70, 14, 120);
-			}
+
+
+	for(auto br = gameBoard.barriers.begin();br != gameBoard.barriers.end();br++){ //Remove Barrier from the list of barriers
+			if(br->vert) {
+				dc->DrawRectangle(70 + br->x * 70 + 3, 20 + br->y * 70, 14, 120);
+			} else {
+				dc->DrawRectangle(20 + br->x * 70, 70 + br->y * 70 + 3, 120, 14);
+
 		}
+
 	}
+
 
 	dc->SetBrush(wxBrush(wxColor("black")));
 	//Show Barriers Left
