@@ -67,13 +67,8 @@ bool Board::barrierPossible(int x, int y, bool vert) {
 		return false;
 	}
 
-    if(vert){ //If this happens it is impossible to place the Barrier, but it can still be the case that barriers are blocking each other
-        if(!possible(x,y,1) || !possible(x,y+1,1))
-            return false;
-    } else{
-        if(!possible(x,y,0) || !possible(x+1,y,0))
-            return false;
-    }
+	if(vert ? !possible(x, y, 1) || !possible(x, y + 1, 1) : !possible(x, y, 2) || !possible(x + 1, y, 2))
+        return false;
 
     for(auto b = barriers.begin();b != barriers.end();b++){ //Barriers are blocking each other "in a cross"
         if(b->vert != vert && x == b->x && y == b->y)

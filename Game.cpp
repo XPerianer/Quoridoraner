@@ -36,7 +36,6 @@ void Game::tryMove(short direction) {
 void Game::tryBarrier(int x, int y, bool vert)
 {
 	if (gameBoard.barrierPossible(x, y, vert)) {
-
 		gameBoard.placeBarrier(Barrier(vert, x, y));
 		gameBoard.activePlayer()->barriers--;
 		gameBoard.switchPlayer();
