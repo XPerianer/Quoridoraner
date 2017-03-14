@@ -118,7 +118,7 @@ int Board::floodFill(Player p) {
     bitset<9> f[9] = {}; //Array is y-Coordinate, solo bits are x
     bitset<9> new_f[9] = {};
     f[p.y][p.x] = 1; //Now having a zeroed bitset with only a 1 at the player position
-    bool equal=true;
+    bool equal=false;
 
     while(!equal){ //Flood everything
         equal = true;
@@ -128,16 +128,16 @@ int Board::floodFill(Player p) {
         for(int i=0;i<9;i++){
             if(f[i] != 0){
                 //Right Movement:
-                new_f[i] |= (~vBarriers[i] & f[i])>>1;
+                new_f[i] |= ((~vBarriers[i] & f[i])<<1);
                 //Left Movement:
-                new_f[i] |= ((~vBarriers[i])<<1 & f[i])<<1;
+                new_f[i] |= (~vBarriers[i] & (f[i]>>1));
                 //Top Movement:
                 if(i!= 0){
-                    new_f[i-1] |= (~hBarriers[i]) & f[i];
+                    new_f[i-1] |= (~hBarriers[i-1]) & f[i];
                 }
                 //Bot Movement:
                 if(i!=8){
-                    new_f[i+1] |= (~hBarriers[i+1] & f[i]);
+                    new_f[i+1] |= (~hBarriers[i] & f[i]);
                 }
             }
         }
@@ -146,11 +146,13 @@ int Board::floodFill(Player p) {
 
         for(int i=0;i<9;i++){
             if(f[i] != new_f[i]) {
-                f[i] = new_f[i];
+                f[i] |= new_f[i];
                 equal = false;
             }
         }
     }
+
+    return -1; //Unable to reach the target
 
 }
 

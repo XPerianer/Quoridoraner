@@ -25,7 +25,7 @@ void Game::tryMove(short direction) {
 			}
 			gameBoard.switchPlayer();
 			//computerMove();
-			//msg += to_string(gameBoard.evaluate()) + " " + to_string(gameBoard.floodFill(*gameBoard.activePlayer()));
+			msg += to_string(gameBoard.evaluate()) + " FloodFill: " + to_string(gameBoard.floodFill(*gameBoard.activePlayer()));
 		}
 
 	
@@ -45,7 +45,7 @@ void Game::tryBarrier(int x, int y, bool vert)
 		return;
 	}
 	//computerMove();
-	msg += to_string(gameBoard.evaluate()) + " " + to_string(gameBoard.floodFill(*gameBoard.activePlayer()));
+	msg += to_string(gameBoard.evaluate()) + " FloodFill: " + to_string(gameBoard.floodFill(*gameBoard.activePlayer()));
 }
 
 void Game::drawGame(wxPaintDC * dc) {
