@@ -37,7 +37,6 @@ void Game::tryBarrier(int x, int y, bool vert)
 {
 	if (gameBoard.barrierPossible(x, y, vert)) {
 		gameBoard.placeBarrier(Barrier(vert, x, y));
-		gameBoard.activePlayer()->barriers--;
 		gameBoard.switchPlayer();
 	}
 	else {
@@ -91,35 +90,26 @@ void Game::drawGame(wxPaintDC * dc) {
 
 int Game::negamax(Board *b, int depth, int alpha, int beta)
 {
-	if (b->checkWin(*b->activePlayer()) || b->checkWin(*b->unactivePlayer())) {
+	if (depth == 0 || b->checkWin(*b->activePlayer()) || b->checkWin(*b->unactivePlayer())) {
 		//msg += to_string(b->evaluate());
 		return b->evaluate();
 	}
-	if (depth == 0) {
-		evaluated++;
-		return b->evaluate();
-	}
 
-	queue<play> moves = b->possibleMoves();
-	int score = -10000;
+	queue<play> moves = b->likelyMoves();
 	while (!moves.empty()) {
 		b->makePlay(moves.front()); //Try next Move
-		score = -negamax(b,depth - 1, -beta, -alpha);
+		int score = -negamax(b,depth - 1, -beta, -alpha);
 		b->undoPlay(moves.front());
-		
+        moves.pop();
 		//msg += to_string(score) + "|";
-
 		if (score > alpha) {
 			alpha = score; // alpha acts like max in MiniMax
 		}
-		if (alpha >= beta) {
+		if (score >= beta) {
 			pruned++;
-			break;  //   beta-cutoff
+			return beta; //beta-cutoff
 		}
-		moves.pop();
 	}
-
-	
 	return alpha;
 }
 
@@ -129,49 +119,33 @@ void Game::computerMove() {
 	msg = "Information:\n";
 	play bestPlay;
 	
-	int alpha = -1000, beta = 1000;
+	int alpha = -1001, beta = 1001;
 
-	evaluated = 0; pruned = 0; transpositions = 0;
+	evaluated = 0; pruned = 0;
 	searchDepth = 0;
-	queue<play> q = gameBoard.possibleMoves();
+    queue<play> q = gameBoard.likelyMoves();
+    int bestScore=-1001;
+    while(!q.empty()){
+        gameBoard.makePlay(q.front());
+        int score = -negamax(&this->gameBoard,4,alpha,beta);
+        msg += "Move: " + to_string(q.front().direction) + "D " + to_string(q.front().x) + "x " + to_string(q.front().y) + "y Score: " + to_string(score) + " \n";
+        if(score > bestScore) {
+            bestScore = score;
+            bestPlay = q.front();
+        }
+        gameBoard.undoPlay(q.front());
+        q.pop();
+    }
 
-	vector<future<int>> score;
-	vector<play> plays;
-	while (!q.empty()) {
-		Board g = gameBoard;
-		g.makePlay(q.front());
-		plays.push_back(q.front());
-		score.push_back(async(launch::async,&Game::negamax, this , new Board(g) , 2, alpha, beta)); //Parralel Execution
-		q.pop();
-	}
-
-	int help = -1;
-	int bestScore = -100000;
-	for (unsigned int i = 0; i < score.size(); i++) {
-		int s = score.at(i).get();
-		if(s >= help)
-			msg += "S: " + to_string(s) + "P: " + to_string(plays.at(i).direction) + "D " + to_string(plays.at(i).x) + "x " + to_string(plays.at(i).y) + "y \n";
-			
-		help = s;
-		
-		if (s >= bestScore) {
-				bestPlay = plays.at(i);
-				bestScore = s;
-			}
-	}
-	
-	
-	
-	
 	msg += "Best Score: " + to_string(bestScore) + "\n";
 	msg += "Best Move: " + to_string(bestPlay.direction) + "D " + to_string(bestPlay.x) + "x " + to_string(bestPlay.y) + "y \n";
-	msg += "Evaluated|Pruned|Transpositions: " + to_string(evaluated) + " | " + to_string(pruned) + +" | " + to_string(transpositions) + "\n";
+	msg += "Evaluated|Pruned: " + to_string(evaluated) + " | " + to_string(pruned) + "\n";
 
 	gameBoard.makePlay(bestPlay);
 
 	auto end = chrono::high_resolution_clock::now();
 	auto diff = end - start;
-	msg += "Total Computation Time: " + to_string(diff.count()) + "\n";
+	msg += "Total Computation Time: " + to_string(diff.count()/1000000) + "\n";
 
 }
 

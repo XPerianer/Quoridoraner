@@ -89,18 +89,18 @@ bool Board::barrierPossible(int x, int y, bool vert) {
 
 
 int Board::evaluate() { // positive is really good //evaluate light...
-	if (checkWin(*activePlayer())) {
+	if (checkWin(*unactivePlayer())) {
 		return -1000;
 	}
-	if (checkWin(*unactivePlayer())) {
+	if (checkWin(*activePlayer())) {
 		return 1000;
 	}
+	int factor = activePlayer()->playerOne ? -1 : 1;
 	
 	int barrierDiff = -activePlayer()->barriers + unactivePlayer()->barriers;
-	int moveDiff = floodFill(*activePlayer()) - floodFill(*unactivePlayer()); //-1 for the extra step the unactive Player has to go
 	//msg += "Evaluated: " + to_string(moveDiff * 10 + barrierDiff * 1);
 
-	return moveDiff * 1 + barrierDiff * 2;
+	return factor * (floodFill(one) - floodFill(two)) ;
 }
 
 int Board::floodFill(Player p) {
@@ -142,7 +142,8 @@ int Board::floodFill(Player p) {
         for(int i=0;i<9;i++){
             if(f[i] != new_f[i]) {
                 f[i] |= new_f[i];
-                equal = false;
+                if(new_f[i] != 0)
+                    equal = false;
             }
         }
     }
@@ -167,7 +168,6 @@ void Board::makePlay(play p) {
 		}
 	}
 	else {
-		activePlayer()->barriers--;
 		placeBarrier(Barrier(p.vert,p.x,p.y));
 	}
 	playerMove = !playerMove;
@@ -191,7 +191,6 @@ void Board::undoPlay(play p) {
 		}
 	}
 	else {
-		activePlayer()->barriers++;
         removeBarrier(Barrier(p.vert,p.x,p.y));
 	}
 
@@ -260,19 +259,19 @@ bool Board::operator==(Board c) {
 queue<play> Board::possibleMoves()
 {
 	queue <play> q;
-	queue <play> pq; //Priority queue, this moves are more likely to be good
+	//queue <play> pq; //Priority queue, this moves are more likely to be good
 	int x = activePlayer()->x; int y = activePlayer()->y;
 	if (possible(x, y, 0)) {
-		pq.push(play(true, 0, x, y - 1, false));
+		q.push(play(true, 0, x, y - 1, false));
 	}
 	if (possible(x, y, 1)) {
-		pq.push(play(true, 1, x + 1, y, false));
+		q.push(play(true, 1, x + 1, y, false));
 	}
 	if (possible(x, y, 2)) {
-		pq.push(play(true, 2, x, y + 1, false));
+		q.push(play(true, 2, x, y + 1, false));
 	}
 	if (possible(x, y, 3)) {
-		pq.push(play(true, 3, x - 1, y, false));
+		q.push(play(true, 3, x - 1, y, false));
 	}
 
 	for (int ix = 0; ix < 8; ix++) {
@@ -293,9 +292,12 @@ queue<play> Board::possibleMoves()
 	return q;
 }
 
+
+
 void Board::placeBarrier(Barrier b) {
 
     barriers.push_back(b);
+	activePlayer()->barriers--;
     if(b.vert){
         vBarriers[b.y][b.x] = 1;
         vBarriers[b.y+1][b.x] = 1;
@@ -309,6 +311,7 @@ void Board::placeBarrier(Barrier b) {
 
 void Board::removeBarrier(Barrier b) {
 
+	activePlayer()->barriers++;
     if(b.vert){
         vBarriers[b.y][b.x] = 0;
         vBarriers[b.y+1][b.x] = 0;
@@ -327,5 +330,77 @@ void Board::removeBarrier(Barrier b) {
     }
 
 
+}
+
+queue<play> Board::likelyMoves() {
+
+    queue <play> q;
+    //queue <play> pq; //Priority queue, this moves are more likely to be good
+    int x = activePlayer()->x; int y = activePlayer()->y;
+    if (possible(x, y, 0)) {
+        q.push(play(true, 0, x, y - 1, false));
+    }
+    if (possible(x, y, 1)) {
+        q.push(play(true, 1, x + 1, y, false));
+    }
+    if (possible(x, y, 2)) {
+        q.push(play(true, 2, x, y + 1, false));
+    }
+    if (possible(x, y, 3)) {
+        q.push(play(true, 3, x - 1, y, false));
+    }
+
+    bitset<8> barVert[8] = {}; //Make Bitmap of likely barriers
+    bitset<8> barHorz[8] = {};
+
+    const int offsetP[4][2] = {-1, 0,  0,0,  -1,-1,  0,-1};
+    for(int i=0;i<4;i++){
+        int px = x + offsetP[i][0], py = y + offsetP[i][1];
+        if(px >= 0 && px < 9 && py >= 0 && py < 9) //Boundary Check
+        {
+            barVert[px][py] = 1;
+            barHorz[px][py] = 1;
+        }
+    }
+    x = unactivePlayer()->x; y = unactivePlayer()->y;
+    for(int i=0;i<4;i++){
+        int px = x + offsetP[i][0], py = y + offsetP[i][1];
+        if(px >= 0 && px < 9 && py >= 0 && py < 9) //Boundary Check
+        {
+            barVert[px][py] = 1;
+            barHorz[px][py] = 1;
+        }
+    }
+
+    const int offsetB[8][2] = {-2,0,  -1,-1,  0,-1,  1,-1,  2,0,   1,1,   0,1,  -1,1}; //Round around the existing barriers
+    const bool vertical[8] = {false, true, true, true, false, true, true, true}; //Could be boolean expression
+    for(auto br = barriers.begin();br != barriers.end();br++){ //Go through list of barriers
+        for(int i=0;i<8;i++){
+            int py = br->y + offsetB[i][1];
+            int px = br->x + offsetB[i][0];
+            if(px >= 0 && px < 8 && py >= 0 && py < 8) //Boundary Check
+            {
+                if(vertical[i])
+                    barVert[px][py] = 1;
+                else
+                    barHorz[px][py] = 1;
+            }
+
+        }
+
+    }
+    //Add barriers to queue
+    for(int i=0;i<8;i++){
+        for(int j=0;j<8;j++){
+            if(barVert[i][j] && barrierPossible(i,j,true))
+                q.push(play(false,-1,i,j,true));
+            if(barHorz[i][j] && barrierPossible(i,j,false))
+                q.push(play(false,-1,i,j,false));
+        }
+    }
+
+
+
+    return q;
 }
 

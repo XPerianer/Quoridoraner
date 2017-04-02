@@ -36,6 +36,8 @@ public:
 	void removeBarrier(Barrier b);
 
 	queue<play> possibleMoves();
+    queue<play> likelyMoves();//Not all moves, but the ones a human player will play almost always
+
 
 	Player* activePlayer();
 	Player* unactivePlayer();
