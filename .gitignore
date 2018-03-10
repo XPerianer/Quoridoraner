@@ -1,0 +1,7 @@
+#CLion
+.idea
+cmake-build-*
+#Vim
+*~
+#Compiles
+.exe
