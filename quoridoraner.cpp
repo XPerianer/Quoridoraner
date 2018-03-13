@@ -213,13 +213,15 @@ void MyFrame::OnMouseClick(wxMouseEvent& event) {
 	
 	wxClientDC dc(this);
 	wxPoint p(event.GetLogicalPosition(dc));
+    int x = round((double)(p.x - 45) / 70); // Calculate clicking position
+	int y = round((double)(p.y + 25) / 70) - 2;
 	if (vertButtonClicked) {
-		game.tryBarrier(round((double)(p.x - 45) / 70), round((double)(p.y + 25) / 70) - 2, true); // + 0.5 to round up the values
+		game.tryBarrier(Barrier(x,y, true)); // + 0.5 to round up the values
 		*textBox << "Set Barrier to: " << round((p.x - 45) / 70) << "|" << round((double)(p.y + 25) / 70) - 2 <<  "\n" << p.x << "|" << p.y << "\n";
 		vertButtonClicked = false;
 	}
 	else if (horizontButtonClicked) {
-		game.tryBarrier(round((double)(p.x - 45 ) / 70), round((double)(p.y + 25) / 70 ) -2 , false); // + 0.5 to round up the values
+		game.tryBarrier(Barrier(x,y, false)); // + 0.5 to round up the values
 		*textBox << "Set Barrier to: " << round((p.x -45) / 70 ) << "|" << round((double)(p.y + 25) / 70) -2 << "\n" << p.x << "|" << p.y << "\n";
 		horizontButtonClicked = false;
 	}

@@ -1,7 +1,6 @@
 #include "Board.h"
 
 
-
 Board::Board()
 {
 	one.playerOne = true;
@@ -58,8 +57,10 @@ bool Board::possible(short x, short y, short direction)
 	return false;
 }
 
-bool Board::barrierPossible(int x, int y, bool vert) {
-
+bool Board::barrierPossible(Barrier b) {
+    int x=b.x;
+	int y=b.y;
+	bool vert = b.vert;
 	if (x < 0 || x > 7 || y < 0 || y > 7) {
 		return false;
 	}
@@ -76,7 +77,7 @@ bool Board::barrierPossible(int x, int y, bool vert) {
     }
 
     //Barrier is theoretical possible to place, now check if both players can win if it is placed
-    play p(false, -1, x, y, vert);
+    Move p(false, -1, Barrier(x, y, vert));
     makePlay(p);
     bool possible = true;
     if (floodFill(one) == -1 || floodFill(two) == -1) { //Play blocks one Player
@@ -152,7 +153,7 @@ int Board::floodFill(Player p) {
 
 }
 
-void Board::makePlay(play p) {
+void Board::makePlay(Move p) {
 	if (p.playerMove == true) {
 		if (p.direction == 0) {
 			activePlayer()->y--;
@@ -168,12 +169,12 @@ void Board::makePlay(play p) {
 		}
 	}
 	else {
-		placeBarrier(Barrier(p.vert,p.x,p.y));
+		placeBarrier(p.barrier);
 	}
 	playerMove = !playerMove;
 }
 
-void Board::undoPlay(play p) {
+void Board::undoPlay(Move p) {
 	playerMove = !playerMove;
 	if (p.playerMove == true) {
 		if (p.direction == 0) {
@@ -191,7 +192,7 @@ void Board::undoPlay(play p) {
 		}
 	}
 	else {
-        removeBarrier(Barrier(p.vert,p.x,p.y));
+        removeBarrier(p.barrier);
 	}
 
 }
@@ -256,34 +257,34 @@ bool Board::operator==(Board c) {
 }
 
 
-queue<play> Board::possibleMoves()
+queue<Move> Board::possibleMoves()
 {
-	queue <play> q;
-	//queue <play> pq; //Priority queue, this moves are more likely to be good
+	queue <Move> q;
+	//queue <Move> pq; //Priority queue, this moves are more likely to be good
 	int x = activePlayer()->x; int y = activePlayer()->y;
 	if (possible(x, y, 0)) {
-		q.push(play(true, 0, x, y - 1, false));
+		q.push(Move(true, 0, Barrier(x, y - 1, false)));
 	}
 	if (possible(x, y, 1)) {
-		q.push(play(true, 1, x + 1, y, false));
+		q.push(Move(true, 1, Barrier(x + 1, y, false)));
 	}
 	if (possible(x, y, 2)) {
-		q.push(play(true, 2, x, y + 1, false));
+		q.push(Move(true, 2, Barrier(x, y + 1, false)));
 	}
 	if (possible(x, y, 3)) {
-		q.push(play(true, 3, x - 1, y, false));
+		q.push(Move(true, 3, Barrier(x - 1, y, false)));
 	}
 
 	for (int ix = 0; ix < 8; ix++) {
 		for (int iy = 0; iy < 8; iy++) {
-			if (barrierPossible(ix, iy, false)) {
+			if (barrierPossible(Barrier(ix, iy, false))) {
 
-					q.push(play(false, -1, ix, iy, false));
+					q.push(Move(false, -1, Barrier(ix, iy, false)));
 
 			}
-			if (barrierPossible(ix, iy, true)) {
+			if (barrierPossible(Barrier(ix, iy, true))) {
 
-					q.push(play(false, -1, ix, iy, true));
+					q.push(Move(false, -1, Barrier(ix, iy, true)));
 
 			}
 		}
@@ -332,22 +333,22 @@ void Board::removeBarrier(Barrier b) {
 
 }
 
-queue<play> Board::likelyMoves() {
+queue<Move> Board::likelyMoves() {
 
-    queue <play> q;
-    //queue <play> pq; //Priority queue, this moves are more likely to be good
+    queue <Move> q;
+    //queue <Move> pq; //Priority queue, this moves are more likely to be good
     int x = activePlayer()->x; int y = activePlayer()->y;
     if (possible(x, y, 0)) {
-        q.push(play(true, 0, x, y - 1, false));
+        q.push(Move(true, 0, Barrier(x, y - 1, false)));
     }
     if (possible(x, y, 1)) {
-        q.push(play(true, 1, x + 1, y, false));
+        q.push(Move(true, 1, Barrier(x + 1, y, false)));
     }
     if (possible(x, y, 2)) {
-        q.push(play(true, 2, x, y + 1, false));
+        q.push(Move(true, 2, Barrier(x, y + 1, false)));
     }
     if (possible(x, y, 3)) {
-        q.push(play(true, 3, x - 1, y, false));
+        q.push(Move(true, 3, Barrier(x - 1, y, false)));
     }
 
     bitset<8> barVert[8] = {}; //Make Bitmap of likely barriers
@@ -392,10 +393,10 @@ queue<play> Board::likelyMoves() {
     //Add barriers to queue
     for(int i=0;i<8;i++){
         for(int j=0;j<8;j++){
-            if(barVert[i][j] && barrierPossible(i,j,true))
-                q.push(play(false,-1,i,j,true));
-            if(barHorz[i][j] && barrierPossible(i,j,false))
-                q.push(play(false,-1,i,j,false));
+            if(barVert[i][j] && barrierPossible(Barrier(i,j,true)))
+                q.push(Move(false,-1,Barrier(i,j,true)));
+            if(barHorz[i][j] && barrierPossible(Barrier(i,j,false)))
+                q.push(Move(false,-1,Barrier(i,j,false)));
         }
     }
 

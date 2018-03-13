@@ -1,17 +1,13 @@
 #pragma once
 #include "Player.h"
-#include "play.h"
+#include "Move.h"
+#include "Barrier.h"
+#include "Move.h"
 #include <chrono>
 #include <queue>
 #include <bitset>
 
 using namespace std;
-
-struct Barrier{
-	Barrier(bool vert, int x, int y) : vert(vert), x(x), y(y) {}
-
-	bool vert; int x, y;
-};
 
 class Board
 {
@@ -23,20 +19,20 @@ public:
 
 	Board(Board& b);
 	bool possible(short x, short y, short direction);
-	bool barrierPossible(int x, int y, bool vert);
+	bool barrierPossible(Barrier b);
 
 	bool checkWin(Player p);
 	void switchPlayer();
 	int floodFill(Player p);
 	int evaluate();
-	void makePlay(play p);
-	void undoPlay(play p);
+	void makePlay(Move p);
+	void undoPlay(Move p);
 
 	void placeBarrier(Barrier b);
 	void removeBarrier(Barrier b);
 
-	queue<play> possibleMoves();
-    queue<play> likelyMoves();//Not all moves, but the ones a human player will play almost always
+	queue<Move> possibleMoves();
+    queue<Move> likelyMoves();//Not all moves, but the ones a human player will Move almost always
 
 
 	Player* activePlayer();

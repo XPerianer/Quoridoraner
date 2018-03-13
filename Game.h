@@ -1,7 +1,7 @@
 #pragma once
 #include "Player.h"
 #include "Board.h"
-#include "play.h"
+#include "Move.h"
 #include <wx/wx.h>
 #include <thread>
 #include <future>
@@ -30,7 +30,7 @@ public:
 	string msg="Welcome at the Quoridoraner";
 	void drawGame(wxPaintDC* dc);
 	void tryMove(short direction);
-	void tryBarrier(int x, int y, bool vert);
+	void tryBarrier(Barrier b);
 	int negamax(Board* b, int depth, int alpha, int beta);
 	void computerMove();
 

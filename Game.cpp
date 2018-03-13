@@ -33,10 +33,10 @@ void Game::tryMove(short direction) {
 }
 
 
-void Game::tryBarrier(int x, int y, bool vert)
+void Game::tryBarrier(Barrier b)
 {
-	if (gameBoard.barrierPossible(x, y, vert)) {
-		gameBoard.placeBarrier(Barrier(vert, x, y));
+	if (gameBoard.barrierPossible(b)) {
+		gameBoard.placeBarrier(b);
 		gameBoard.switchPlayer();
 	}
 	else {
@@ -62,24 +62,17 @@ void Game::drawGame(wxPaintDC * dc) {
 	//Draw Active Player
 	dc->SetBrush(wxBrush(gameBoard.activePlayer()->color));
 	dc->DrawCircle(820, 160, 20);
-
-
 	//Draw Barriers
 	dc->SetBrush(wxBrush(wxColor("grey")));
-
-
-
-	for(auto br = gameBoard.barriers.begin();br != gameBoard.barriers.end();br++){ //Remove Barrier from the list of barriers
-			if(br->vert) {
-				dc->DrawRectangle(70 + br->x * 70 + 3, 20 + br->y * 70, 14, 120);
+	for(auto br : gameBoard.barriers){ //Remove Barrier from the list of barriers
+			if(br.vert) {
+				dc->DrawRectangle(70 + br.x * 70 + 3, 20 + br.y * 70, 14, 120);
 			} else {
-				dc->DrawRectangle(20 + br->x * 70, 70 + br->y * 70 + 3, 120, 14);
+				dc->DrawRectangle(20 + br.x * 70, 70 + br.y * 70 + 3, 120, 14);
 
 		}
 
 	}
-
-
 	dc->SetBrush(wxBrush(wxColor("black")));
 	//Show Barriers Left
 	dc->DrawText(wxT("Barriers(Red): " + to_string(gameBoard.one.barriers)), 1000, 20);
@@ -95,7 +88,7 @@ int Game::negamax(Board *b, int depth, int alpha, int beta)
 		return b->evaluate();
 	}
 
-	queue<play> moves = b->likelyMoves();
+	queue<Move> moves = b->likelyMoves();
 	while (!moves.empty()) {
 		b->makePlay(moves.front()); //Try next Move
 		int score = -negamax(b,depth - 1, -beta, -alpha);
@@ -117,18 +110,17 @@ int Game::negamax(Board *b, int depth, int alpha, int beta)
 void Game::computerMove() {
 	auto start = chrono::high_resolution_clock::now();
 	msg = "Information:\n";
-	play bestPlay;
+	Move bestPlay;
 	
 	int alpha = -1001, beta = 1001;
 
 	evaluated = 0; pruned = 0;
 	searchDepth = 0;
-    queue<play> q = gameBoard.likelyMoves();
+    queue<Move> q = gameBoard.likelyMoves();
     int bestScore=-1001;
     while(!q.empty()){
         gameBoard.makePlay(q.front());
         int score = -negamax(&this->gameBoard,4,alpha,beta);
-        msg += "Move: " + to_string(q.front().direction) + "D " + to_string(q.front().x) + "x " + to_string(q.front().y) + "y Score: " + to_string(score) + " \n";
         if(score > bestScore) {
             bestScore = score;
             bestPlay = q.front();
@@ -138,7 +130,6 @@ void Game::computerMove() {
     }
 
 	msg += "Best Score: " + to_string(bestScore) + "\n";
-	msg += "Best Move: " + to_string(bestPlay.direction) + "D " + to_string(bestPlay.x) + "x " + to_string(bestPlay.y) + "y \n";
 	msg += "Evaluated|Pruned: " + to_string(evaluated) + " | " + to_string(pruned) + "\n";
 
 	gameBoard.makePlay(bestPlay);

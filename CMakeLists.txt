@@ -10,7 +10,8 @@ set(SOURCE_FILES Board.cpp
         Game.cpp
         Game.h
         quoridoraner.cpp
-        play.h
+        Move.h
+        Barrier.h
         Player.cpp
         Player.h)
 add_executable(Quoridoraner ${SOURCE_FILES})       # Add executable target with source files listed in SOURCE_FILES variable
