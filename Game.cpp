@@ -8,7 +8,7 @@ Game::~Game()
 }
 
 
-void Game::tryMove(Move m) {
+void Game::tryMove(Move m) {//TODO: Save move in history
     if(m.playerMove) {
 		tryMoving(m.direction);
 	} else{

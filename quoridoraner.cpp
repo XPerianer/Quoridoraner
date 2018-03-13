@@ -256,9 +256,9 @@ void MyFrame::OnComputerMove(wxCommandEvent & event) {
 	Refresh();
 }
 
-void MyFrame::OnRedo(wxCommandEvent & event){
+void MyFrame::OnRedo(wxCommandEvent & event){// TODO: Fill with functionality
 
 }
-void MyFrame::OnUndo(wxCommandEvent & event){
+void MyFrame::OnUndo(wxCommandEvent & event){// TODO: Fill with functionality
 
 }
