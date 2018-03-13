@@ -36,6 +36,8 @@ public:
 	void OnHorizontallyButton(wxCommandEvent& WXUNUSED(event));
 	void OnVerticalButton(wxCommandEvent& WXUNUSED(event));
 	void OnComputerMove(wxCommandEvent& WXUNUSED(event));
+    void OnRedo(wxCommandEvent & event);
+    void OnUndo(wxCommandEvent & event);
 
 private:
     // any class wishing to process wxWidgets events must use this macro
@@ -56,6 +58,8 @@ enum
 	// menu items
 	Minimal_Quit = wxID_EXIT,
 	Minimal_About = wxID_ABOUT,
+    ID_UNDO,
+    ID_REDO,
 	TextBox
 };
 
@@ -77,6 +81,8 @@ IDComputerMove
 wxBEGIN_EVENT_TABLE(MyFrame, wxFrame)
 	EVT_MENU(Minimal_Quit, MyFrame::OnQuit)
 	EVT_MENU(Minimal_About, MyFrame::OnAbout)
+    EVT_MENU(ID_REDO, MyFrame::OnRedo)
+    EVT_MENU(ID_UNDO, MyFrame::OnUndo)
 	EVT_PAINT(MyFrame::OnPaint)
 	EVT_BUTTON(IDTop,MyFrame::OnTopButton)
 	EVT_BUTTON(IDRight,MyFrame::OnRightButton)
@@ -124,8 +130,10 @@ MyFrame::MyFrame(const wxChar *title, int xpos, int ypos, int width, int height)
     wxMenu *helpMenu = new wxMenu;
     helpMenu->Append(Minimal_About, "&About\tF1", "Show about dialog");
 
-    fileMenu->Append(Minimal_Quit, "E&xit\tAlt-X", "Quit this program");
 
+    fileMenu->Append(Minimal_Quit, "E&xit\tAlt-X", "Quit this program");
+    fileMenu->Append(ID_UNDO, "Undo", "Undo the last move");
+    fileMenu->Append(ID_REDO, "Redo", "Redo the last move");
     // now append the freshly created menu to the menu bar...
     wxMenuBar *menuBar = new wxMenuBar();
     menuBar->Append(fileMenu, "&File");
@@ -134,10 +142,8 @@ MyFrame::MyFrame(const wxChar *title, int xpos, int ypos, int width, int height)
     // ... and attach this menu bar to the frame
     SetMenuBar(menuBar);
 
-
-
 	// Place Buttons:
-	topButton = new wxButton(this, IDTop, wxT("Top"), wxPoint(800, 40),wxSize(40,100));
+    topButton = new wxButton(this, IDTop, wxT("Top"), wxPoint(800, 40),wxSize(40,100));
 	botButton = new wxButton(this, IDBot, wxT("Bot"), wxPoint(800, 180), wxSize(40, 100));
 
 	leftButton = new wxButton(this, IDLeft, wxT("Left"), wxPoint(800-100, 140),wxSize(100,40));
@@ -189,22 +195,22 @@ void MyFrame::OnPaint(wxPaintEvent& event) {
 
 
 void MyFrame::OnTopButton(wxCommandEvent& WXUNUSED(event)) {
-	game.tryMove(0);
+    game.tryMoving(0);
 	Refresh();
 }
 
 void MyFrame::OnRightButton(wxCommandEvent& WXUNUSED(event))
 {
-	game.tryMove(1);
+    game.tryMoving(1);
 	Refresh();
 }
 
 void MyFrame::OnBotButton(wxCommandEvent& WXUNUSED(event)) {
-	game.tryMove(2);
+    game.tryMoving(2);
 	Refresh();
 }
 void MyFrame::OnLeftButton(wxCommandEvent& WXUNUSED(event)) {
-	game.tryMove(3);
+    game.tryMoving(3);
 	Refresh();
 }
 
@@ -216,17 +222,15 @@ void MyFrame::OnMouseClick(wxMouseEvent& event) {
     int x = round((double)(p.x - 45) / 70); // Calculate clicking position
 	int y = round((double)(p.y + 25) / 70) - 2;
 	if (vertButtonClicked) {
-		game.tryBarrier(Barrier(x,y, true)); // + 0.5 to round up the values
-		*textBox << "Set Barrier to: " << round((p.x - 45) / 70) << "|" << round((double)(p.y + 25) / 70) - 2 <<  "\n" << p.x << "|" << p.y << "\n";
+		game.tryBarrier(Barrier(x,y, true));
 		vertButtonClicked = false;
 	}
 	else if (horizontButtonClicked) {
-		game.tryBarrier(Barrier(x,y, false)); // + 0.5 to round up the values
-		*textBox << "Set Barrier to: " << round((p.x -45) / 70 ) << "|" << round((double)(p.y + 25) / 70) -2 << "\n" << p.x << "|" << p.y << "\n";
+		game.tryBarrier(Barrier(x,y, false));
 		horizontButtonClicked = false;
 	}
+    *textBox << "Set Barrier to: " << x << "|" << y <<  "\n" << p.x << "|" << p.y << "\n";
 
-	
 	Refresh();
 }
 
@@ -250,4 +254,11 @@ void MyFrame::OnVerticalButton(wxCommandEvent & event)
 void MyFrame::OnComputerMove(wxCommandEvent & event) {
 	game.computerMove();
 	Refresh();
+}
+
+void MyFrame::OnRedo(wxCommandEvent & event){
+
+}
+void MyFrame::OnUndo(wxCommandEvent & event){
+
 }

@@ -7,7 +7,16 @@ Game::~Game()
 {
 }
 
-void Game::tryMove(short direction) {
+
+void Game::tryMove(Move m) {
+    if(m.playerMove) {
+		tryMoving(m.direction);
+	} else{
+		tryBarrier(m.barrier);
+	}
+}
+
+void Game::tryMoving(short direction) {
 	
 	if (gameBoard.possible(gameBoard.activePlayer()->x, gameBoard.activePlayer()->y, direction)) {
 		
@@ -139,4 +148,5 @@ void Game::computerMove() {
 	msg += "Total Computation Time: " + to_string(diff.count()/1000000) + "\n";
 
 }
+
 

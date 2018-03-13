@@ -29,10 +29,12 @@ public:
 
 	string msg="Welcome at the Quoridoraner";
 	void drawGame(wxPaintDC* dc);
-	void tryMove(short direction);
+	void tryMoving(short direction);
 	void tryBarrier(Barrier b);
+	void tryMove(Move m);
 	int negamax(Board* b, int depth, int alpha, int beta);
 	void computerMove();
+	vector<Move> history;
 
 };
 
