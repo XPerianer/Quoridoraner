@@ -2,3 +2,4 @@ language: cpp
 install: 
  - sudo apt-get install libwxgtk2.8-dev libwxgtk2.8-dbg
  - cmake CMakeLists.txt
+ script: make
