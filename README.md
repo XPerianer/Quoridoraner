@@ -1,3 +1,4 @@
+[![Build Status](https://travis-ci.org/XPerianer/Quoridoraner.svg?branch=master)](https://travis-ci.org/XPerianer/Quoridoraner)
 # Quoridoraner
 Artifical Intelligence and GUI for the classic board game "Quoridor". Works with the help of NegaMax and Alpha-Beta-Pruning to calculate the best moves.
 
