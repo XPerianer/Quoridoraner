@@ -3,7 +3,6 @@ project(Quoridor)
 set(CMAKE_CXX_STANDARD 11)            # Enable c++11 standard
 
 # and for each of your dependent executable/library targets:
-set(EXECUTABLE_OUTPUT_PATH ../)
 
 set(SOURCE_FILES Board.cpp
         Board.h
@@ -15,7 +14,6 @@ set(SOURCE_FILES Board.cpp
         Player.h)
 add_executable(Quoridoraner ${SOURCE_FILES})       # Add executable target with source files listed in SOURCE_FILES variable
 
-set(wxWidgets_ROOT_DIR D:/Dokumente/wxWidgets-3.0.2)
 find_package(wxWidgets  REQUIRED core base )
 set(wxWidgets_Configuration mswu)
 
