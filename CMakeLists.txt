@@ -2,9 +2,6 @@ cmake_minimum_required(VERSION 3.7)   # CMake version check
 project(Quoridor)
 set(CMAKE_CXX_STANDARD 11)            # Enable c++11 standard
 
-# and for each of your dependent executable/library targets:
-set(EXECUTABLE_OUTPUT_PATH ../)
-
 set(SOURCE_FILES Board.cpp
         Board.h
         Game.cpp
