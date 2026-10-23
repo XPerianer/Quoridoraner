@@ -17,3 +17,15 @@ compile_commands.json
 CTestTestfile.cmake
 #Binaries
 Quoridoraner
+
+#Web
+node_modules
+dist
+*.local
+.DS_Store
+*.log
+selfplay/results
+
+# Optional MPS benchmark environment
+.venv/
+__pycache__/

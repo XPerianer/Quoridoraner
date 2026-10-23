@@ -1,0 +1,6 @@
+{
+  "name": "tempo",
+  "pairs": 60,
+  "base": { "maxNodes": 50000 },
+  "sweep": { "tempo": [-5, 5, 10] }
+}

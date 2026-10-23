@@ -1,0 +1,6 @@
+{
+  "name": "smoke",
+  "pairs": 4,
+  "base": { "maxNodes": 5000 },
+  "candidates": [{ "name": "ww5", "params": { "wallWeight": 5 } }]
+}

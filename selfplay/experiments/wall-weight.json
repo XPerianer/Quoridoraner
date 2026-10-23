@@ -1,0 +1,6 @@
+{
+  "name": "wall-weight",
+  "pairs": 60,
+  "base": { "maxNodes": 50000 },
+  "sweep": { "wallWeight": [2, 5, 15, 20] }
+}

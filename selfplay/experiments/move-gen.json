@@ -1,0 +1,7 @@
+{
+  "name": "move-gen",
+  "pairs": 40,
+  "base": { "maxNodes": 1e15, "timeMs": 300 },
+  "baseline": { "name": "all-walls", "params": { "moveGen": "all" } },
+  "candidates": [{ "name": "likely-walls", "params": { "moveGen": "likely" } }]
+}
