@@ -1,0 +1,163 @@
+[
+  {
+    "kind": "eager",
+    "batch": 1,
+    "median_ms": 0.9573539973644074
+  },
+  {
+    "kind": "eager",
+    "batch": 8,
+    "median_ms": 0.8405834996665362
+  },
+  {
+    "kind": "eager",
+    "batch": 32,
+    "median_ms": 1.1087295024481136
+  },
+  {
+    "kind": "eager",
+    "batch": 64,
+    "median_ms": 1.0338544998376165
+  },
+  {
+    "kind": "eager",
+    "batch": 128,
+    "median_ms": 0.9838749974733219
+  },
+  {
+    "kind": "eager",
+    "batch": 256,
+    "median_ms": 1.1709585014614277
+  },
+  {
+    "kind": "eager",
+    "batch": 512,
+    "median_ms": 1.489124999352498
+  },
+  {
+    "kind": "channels_last",
+    "batch": 1,
+    "median_ms": 0.8090415030892473
+  },
+  {
+    "kind": "channels_last",
+    "batch": 8,
+    "median_ms": 0.8335624988831114
+  },
+  {
+    "kind": "channels_last",
+    "batch": 32,
+    "median_ms": 1.0242085008940194
+  },
+  {
+    "kind": "channels_last",
+    "batch": 64,
+    "median_ms": 0.9273750001739245
+  },
+  {
+    "kind": "channels_last",
+    "batch": 128,
+    "median_ms": 1.0054379999928642
+  },
+  {
+    "kind": "channels_last",
+    "batch": 256,
+    "median_ms": 1.232666996656917
+  },
+  {
+    "kind": "channels_last",
+    "batch": 512,
+    "median_ms": 1.5973119989212137
+  },
+  {
+    "kind": "traced",
+    "batch": 1,
+    "median_ms": 0.8146250002027955
+  },
+  {
+    "kind": "traced",
+    "batch": 8,
+    "median_ms": 0.7253335024870466
+  },
+  {
+    "kind": "traced",
+    "batch": 32,
+    "median_ms": 0.8013744991330896
+  },
+  {
+    "kind": "traced",
+    "batch": 64,
+    "median_ms": 0.8571664984629024
+  },
+  {
+    "kind": "traced",
+    "batch": 128,
+    "median_ms": 0.9252085001207888
+  },
+  {
+    "kind": "traced",
+    "batch": 256,
+    "median_ms": 1.0999589976563584
+  },
+  {
+    "kind": "traced",
+    "batch": 512,
+    "median_ms": 1.4187084998411592
+  },
+  {
+    "kind": "fp16",
+    "batch": 1,
+    "median_ms": 0.8418745019298512
+  },
+  {
+    "kind": "fp16",
+    "batch": 8,
+    "median_ms": 0.8182079982361756
+  },
+  {
+    "kind": "fp16",
+    "batch": 32,
+    "median_ms": 0.911437498871237
+  },
+  {
+    "kind": "fp16",
+    "batch": 64,
+    "median_ms": 1.1855205011670478
+  },
+  {
+    "kind": "fp16",
+    "batch": 128,
+    "median_ms": 1.1487294977996498
+  },
+  {
+    "kind": "fp16",
+    "batch": 256,
+    "median_ms": 1.1736250016838312
+  },
+  {
+    "kind": "fp16",
+    "batch": 512,
+    "median_ms": 1.3587294997705612
+  },
+  {
+    "kind": "synchronized_components",
+    "batch": 1,
+    "copy_ms": 0.223687500692904,
+    "model_ms": 0.4674374977184925,
+    "read_ms": 0.26022900055977516
+  },
+  {
+    "kind": "synchronized_components",
+    "batch": 32,
+    "copy_ms": 0.22908350001671351,
+    "model_ms": 0.5450619973998982,
+    "read_ms": 0.261875000433065
+  },
+  {
+    "kind": "synchronized_components",
+    "batch": 128,
+    "copy_ms": 0.24581249817856587,
+    "model_ms": 0.6493749970104545,
+    "read_ms": 0.2556455001467839
+  }
+]

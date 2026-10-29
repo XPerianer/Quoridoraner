@@ -1,0 +1,39 @@
+{
+  "opponents": [
+    "borowski"
+  ],
+  "model": "/Users/dominikmeier/Documents/code/Quoridoraner/training/runs/az/colab/rl-model.pt",
+  "simulations": 400,
+  "goris_sims": 60000,
+  "sigma_sims": 400,
+  "pairs": 1,
+  "seed": 20261029,
+  "max_plies": 200,
+  "validate": false,
+  "out": "training/runs/borowski-20261029-v2",
+  "model_sha256": "f74d21d56445ff37fe8d8a35100ef02a400cfc1d4d38371dd7e216265cce13b6",
+  "sources": {
+    "borowski": {
+      "repo": "danielborowski/quoridor-ai",
+      "commit": "4723b0eae6e524c232bcfeb9fc49eb8742daafb6",
+      "files": [
+        "js/path/graph.js",
+        "js/path/astar.js",
+        "js/board.js",
+        "js/ai.js",
+        "js/placewall.js",
+        "display.html",
+        "README.md"
+      ],
+      "sha256": {
+        "js/path/graph.js": "9f88cd1d6ca499be5dc1bd8d4d5c73cb8252e5652da13b775fb2ce71b47c0acf",
+        "js/path/astar.js": "b238962f2ad375b34551e6ae8aa8b48cc618ba3d86f98fa0bcabf367f8ec2bb1",
+        "js/board.js": "eec04df9e34bac832dc1a998f23395ba21fa94e4e2bc94d8884f843c09e42c29",
+        "js/ai.js": "416586d36a00e5e42cc2129b6d53bad1886203bb2f9f16a3e31428598676fad2",
+        "js/placewall.js": "cdf2a35300ec22c76b86a55a7431a8d54cb2fe0b47c10ceb32131cc917baa056",
+        "display.html": "d7b997dc145d0ed54154a50a6f34ab1d4279ba06fd62e01a7823fe9647d2f67d",
+        "README.md": "791bd68c9493a269642fbb4c46cfaaf56f4d413574f776128af2f9f8ab294c15"
+      }
+    }
+  }
+}

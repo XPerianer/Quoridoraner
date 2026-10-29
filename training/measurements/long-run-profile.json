@@ -1,0 +1,69 @@
+{
+  "source": "training/runs/both-values-full-curriculum/latest.pt",
+  "source_iteration": 200,
+  "source_records": 52120,
+  "profiled_iteration": 201,
+  "method": "cProfile of one additional iteration, both arms, full history/replay, MPS hybrid, four workers; final monitoring and heldout suites included. Profiler adds overhead; component times overlap.",
+  "records_equal": true,
+  "losses_equal": true,
+  "weights_equal": true,
+  "rows": [
+    {
+      "variant": "profile-baseline",
+      "profile_cumulative_seconds": {
+        "save": 4.711981333000001,
+        "run": 23.270610375,
+        "show": 5.280249683
+      },
+      "performance": {
+        "requests": 18871,
+        "bridge_seconds": 1.9126112586236559,
+        "inference_seconds": 9.55371977444156,
+        "inference_batches": 16109,
+        "inference_positions": 226407,
+        "reused_visits": 60405,
+        "other_bridge_seconds": 0.37980019819224253,
+        "cpu_inference_batches": 10075,
+        "mps_inference_batches": 6034,
+        "forward_seconds": 8.999055011372548,
+        "policy_seconds": 0.5546647630690131,
+        "search_bridge_seconds": 1.149414422310656,
+        "negamax_seconds": 0.3833966381207574,
+        "training_seconds": 18.427065500000026,
+        "checkpoint_seconds": 4.712005375011358,
+        "checkpoints": 1,
+        "update_seconds": 1.055308455019258
+      }
+    },
+    {
+      "variant": "profile-after",
+      "profile_cumulative_seconds": {
+        "run": 19.447254042,
+        "show": 0.052967433,
+        "save": 4.773291333
+      },
+      "performance": {
+        "requests": 18871,
+        "bridge_seconds": 1.936811021529138,
+        "inference_seconds": 10.717307405750034,
+        "inference_batches": 16109,
+        "inference_positions": 226407,
+        "reused_visits": 60405,
+        "other_bridge_seconds": 0.37710931900073774,
+        "cpu_inference_batches": 10075,
+        "mps_inference_batches": 6034,
+        "forward_seconds": 10.091865887254244,
+        "policy_seconds": 0.6254415184957907,
+        "search_bridge_seconds": 1.182701403653482,
+        "training_search_moves": 2151,
+        "training_requested_simulations": 137664,
+        "training_full_search_moves": 2151,
+        "negamax_seconds": 0.37700029887491837,
+        "training_seconds": 14.56028974999208,
+        "checkpoint_seconds": 4.7733216249907855,
+        "checkpoints": 1,
+        "update_seconds": 1.2187805809953716
+      }
+    }
+  ]
+}

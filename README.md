@@ -14,6 +14,23 @@ npm run build    # static site in dist/
 npm run selfplay -- selfplay/experiments/wall-weight.json   # engine-vs-engine tuning, see selfplay/README.md
 ```
 
+## Train neural bots
+
+An AlphaZero-style policy/value network and MCTS trainer learns two independent
+bots: one through self-play, one against the fixed negamax engine. It includes a
+live terminal dashboard, timed resumable checkpoints, batched inference, and CLI play/evaluation.
+
+```sh
+.venv/bin/python -m pip install -r training/requirements.txt
+.venv/bin/python training/train.py --out training/runs/quick
+# Ctrl-C saves and pauses; continue with:
+.venv/bin/python training/train.py --resume training/runs/quick
+```
+
+See [the training guide](training/README.md) for setup, settings, and how to play
+against exported bots. The default experiment is intentionally small; measured
+strength improvement needs substantially more training and evaluation games.
+
 ## Playing
 
 - Click a highlighted square to move. Jumps over the opponent, and diagonal jumps when a wall is behind them, follow the standard rules.
@@ -57,3 +74,28 @@ full-search throughput** of the original implementation on an M1 Pro. Run
 `npm run bench:kernels` to compare five pathfinding approaches. See
 [benchmark results and engine API examples](bench/README.md) for methodology,
 reproducible timings, and the optional PyTorch/MPS batch experiment.
+
+## Training dashboard
+
+```sh
+npm run dashboard
+```
+
+Open **http://127.0.0.1:8765**. This builds the frontend and starts a local Python
+server using the existing `.venv` training dependencies. Training runs under
+`training/runs` are discovered automatically, including nested run directories.
+Select runs to compare evaluation scores, goal rates, policy/value losses, and
+saved configuration/performance. Saved metrics refresh every 15 seconds; older
+runs without `summary.json` are summarized from `metrics.json`.
+
+In **Play & watch**, select Human, Built-in negamax, or either exported model
+from any run for White and Black. Choose two bots to watch a match, and use
+Pause/Resume, Undo, and New game to control it. Neural simulations control MCTS
+strength; think time and other engine settings apply to built-in negamax.
+Neural inference runs on CPU and caches up to four exported models, reloading
+when their files change. Exports reflect the latest pause/completion, while
+training charts reflect the latest saved checkpoint. Matches adjudicate threefold
+repetition and 200 plies as draws. These are artificial match limits.
+
+For frontend development, run `.venv/bin/python training/dashboard.py` and
+`npm run dev` in separate terminals; Vite proxies `/api` to port 8765.

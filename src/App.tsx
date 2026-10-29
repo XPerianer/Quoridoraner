@@ -5,8 +5,9 @@ import { DEFAULT_OPTIONS } from './engine/search'
 import type { Move, MoveGen, Player, SearchOptions, SearchSnapshot } from './engine/types'
 import { BoardView, type Overlay } from './components/BoardView'
 import { SearchPanel } from './components/SearchPanel'
+import { api, type Run } from './dashboard-api'
 
-type Controller = 'human' | 'engine'
+type Controller = string
 const NAMES = ['White', 'Black'] as const
 const MIN_ENGINE_MOVE_MS = 400
 const NODE_LIMITS = [10_000, 50_000, 200_000, 1_000_000, 5_000_000, DEFAULT_OPTIONS.maxNodes]
@@ -22,9 +23,11 @@ function replay(history: Move[]): Board {
   return b
 }
 
-export default function App() {
+export default function App({ runs = [] }: { runs?: Run[] }) {
   const [history, setHistory] = useState<Move[]>([])
-  const [controllers, setControllers] = useState<[Controller, Controller]>(['human', 'engine'])
+  // ?white=…&black=…&sims=… preselects the arena players (values as in the player menus).
+  const query = new URLSearchParams(window.location.search)
+  const [controllers, setControllers] = useState<[Controller, Controller]>([query.get('white') ?? 'human', query.get('black') ?? 'engine'])
   const [options, setOptions] = useState<SearchOptions>(DEFAULT_OPTIONS)
   const [paused, setPaused] = useState(false)
   const [overlay, setOverlay] = useState<Overlay>('candidates')
@@ -33,12 +36,20 @@ export default function App() {
   const [search, setSearch] = useState<Search | null>(null)
   const [analyzing, setAnalyzing] = useState(false)
   const [highlight, setHighlight] = useState<Move | null>(null)
+  const [botError, setBotError] = useState('')
+  const [simulations, setSimulations] = useState(Number(query.get('sims')) || 64)
+  const positions = useMemo(() => {
+    const b = Board.initial(); const result = [b.toPosition()]
+    for (const move of history) { b.make(move); result.push(b.toPosition()) }
+    return result
+  }, [history])
+  const cutoff = history.length >= 200 ? 'Move limit (200 plies)' : positions.filter(p => JSON.stringify(p) === JSON.stringify(positions.at(-1))).length >= 3 ? 'Threefold repetition' : null
 
   const board = useMemo(() => replay(history), [history])
   const winner = board.winner()
   const turn = board.turn as Player
-  const engineToMove = winner === -1 && controllers[turn] === 'engine'
-  const thinking = engineToMove && !paused
+  const engineToMove = winner === -1 && controllers[turn] !== 'human' && !cutoff
+  const thinking = engineToMove && !paused && !botError
 
   const client = useRef<EngineClient | null>(null)
   useEffect(() => {
@@ -63,18 +74,29 @@ export default function App() {
     if (!thinking) return
     const started = performance.now()
     let timer = 0
-    runSearch((result) => {
-      if (!result) return
-      timer = window.setTimeout(
-        () => setHistory((h) => [...h, result.bestMove]),
-        Math.max(0, MIN_ENGINE_MOVE_MS - (performance.now() - started)),
-      )
-    })
+    let active = true
+    const controller = new AbortController()
+    const finish = (move: Move) => {
+      if (!active) return
+      if (!board.legalMoves().includes(move)) { setBotError('Bot returned an illegal move'); return }
+      timer = window.setTimeout(() => { if (active) setHistory(h => [...h, move]) }, Math.max(0, MIN_ENGINE_MOVE_MS - (performance.now() - started)))
+    }
+    if (controllers[turn] === 'engine') {
+      runSearch(result => { if (result) finish(result.bestMove) })
+    } else {
+      const [run, mode] = JSON.parse(controllers[turn]) as [string, string]
+      void api<{ move: number }>('/api/move', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: controller.signal,
+        body: JSON.stringify({ run, mode, simulations, positions }),
+      }).then(result => finish(result.move)).catch(e => { if (active) setBotError(e.message) })
+    }
     return () => {
+      active = false
+      controller.abort()
       client.current!.cancel()
       clearTimeout(timer)
     }
-  }, [thinking, runSearch])
+  }, [thinking, runSearch, board, controllers, turn, simulations, positions])
 
   const analyze = () => {
     setAnalyzing(true)
@@ -104,17 +126,20 @@ export default function App() {
   const newGame = () => {
     stopAnalysis()
     setSearch(null)
+    setBotError('')
     setHistory([])
   }
 
   const stale = search !== null && search.ply !== history.length
   const liveSnapshot = search && !stale ? search.snapshot : null
-  const humanToMove = winner === -1 && controllers[turn] === 'human'
+  const humanToMove = winner === -1 && !cutoff && controllers[turn] === 'human'
   const lastMove = history.length ? history[history.length - 1] : null
 
   const status =
     winner !== -1
       ? `${NAMES[winner]} wins`
+      : cutoff
+        ? `Draw adjudication: ${cutoff}`
       : thinking
         ? `${NAMES[turn]} (engine) is thinking…`
         : engineToMove && paused
@@ -125,8 +150,9 @@ export default function App() {
     <div className="app">
       <header className="top">
         <h1>Quoridoraner</h1>
-        <span className="muted">Quoridor with a live negamax / alpha-beta engine</span>
+        <span className="muted">Choose a human, the built-in engine, or an exported neural bot for either side</span>
       </header>
+      {botError && <div className="dash-error" role="alert">{botError} <button onClick={() => setBotError('')}>Retry move</button></div>}
       <main>
         <section className="play-col">
           <div className="status-row">
@@ -166,8 +192,8 @@ export default function App() {
             {humanToMove && (
               <button onClick={() => (analyzing ? client.current!.stop() : analyze())}>{analyzing ? 'Stop analysis' : 'Analyze'}</button>
             )}
-            {thinking && <button onClick={() => client.current!.stop()}>Move now</button>}
-            {controllers[0] === 'engine' && controllers[1] === 'engine' && (
+            {thinking && controllers[turn] === 'engine' && <button onClick={() => client.current!.stop()}>Move now</button>}
+            {controllers[0] !== 'human' && controllers[1] !== 'human' && (
               <button onClick={() => setPaused(!paused)}>{paused ? 'Resume' : 'Pause'}</button>
             )}
           </div>
@@ -182,14 +208,23 @@ export default function App() {
                     onChange={(e) => {
                       const next = [...controllers] as [Controller, Controller]
                       next[p] = e.target.value as Controller
+                      setBotError('')
                       setControllers(next)
                     }}
                   >
                     <option value="human">Human</option>
-                    <option value="engine">Engine</option>
+                    <option value="engine">Built-in negamax</option>
+                    <option value={JSON.stringify(['', 'negamax:2000'])}>Reference negamax (C++, 2000 nodes)</option>
+                    {runs.flatMap(run => run.bots.map(mode => <option key={`${run.id}/${mode}`} value={JSON.stringify([run.id,mode])}>{run.id} / {mode}</option>))}
                   </select>
                 </label>
               ))}
+              <label>
+                Neural simulations
+                <select value={simulations} onChange={e => setSimulations(Number(e.target.value))}>
+                  {[8,16,32,64,128,256,400,512].map(n => <option key={n} value={n}>{n}</option>)}
+                </select>
+              </label>
               <label>
                 Think time
                 <select value={options.timeMs} onChange={(e) => setOption('timeMs', Number(e.target.value))}>

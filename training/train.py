@@ -1,12 +1,14 @@
 """Resumable, two-arm AlphaZero-style experiment. Run with --help."""
 import argparse
 import copy
-from collections import deque
+from collections import Counter, deque
 from datetime import datetime, timezone
 import json
+import math
 import os
 from pathlib import Path
 import random
+import re
 import shutil
 import signal
 import sys
@@ -29,6 +31,11 @@ MODES = ('selfplay', 'negamax')
 STOP = False
 
 
+def repetition_limit(config, phase):
+    """Optional early rollout adjudication; evaluation retains threefold."""
+    return config.get('training_repetition_limit', 3) if phase == 'train' else 3
+
+
 def stop_requested(_signum, _frame):
     global STOP
     STOP = True
@@ -43,6 +50,98 @@ def atomic_save(value, path):
     os.replace(temp, path)
 
 
+ANSI = re.compile(r'\x1b\[[0-9;]*m')
+RESET = '\033[0m'
+DIM = '\033[2m'
+BOLD = '\033[1m'
+CYAN = '\033[36m'
+MAGENTA = '\033[35m'
+YELLOW = '\033[33m'
+GREEN = '\033[32m'
+RED = '\033[31m'
+
+
+def visible_width(text):
+    return len(ANSI.sub('', text))
+
+
+def clip(text, width):
+    """Truncate styled text to a visible column budget."""
+    if visible_width(text) <= width:
+        return text
+    result, used, index = [], 0, 0
+    while index < len(text):
+        match = ANSI.match(text, index)
+        if match:
+            result.append(match.group())
+            index = match.end()
+            continue
+        if used >= max(0, width - 1):
+            break
+        result.append(text[index])
+        used += 1
+        index += 1
+    return ''.join(result) + '…' + RESET
+
+
+def pad(text, width):
+    return text + ' ' * max(0, width - visible_width(text))
+
+
+def join_columns(left, right, width, gap=2):
+    """Place right-aligned text when it fits, otherwise keep the left message."""
+    room = width - visible_width(right) - gap
+    if room <= 0:
+        return clip(left, width)
+    return pad(clip(left, room), room + gap) + right
+
+
+def progress_bar(fraction, width, color=CYAN):
+    fraction = max(0.0, min(1.0, fraction))
+    filled = int(round(width * fraction))
+    if 0 < fraction < 1 and filled == 0:
+        filled = 1
+    if fraction >= 1:
+        filled = width
+    return f'{color}{"█" * filled}{DIM}{"░" * (width - filled)}{RESET}'
+
+
+def format_duration(seconds):
+    seconds = max(0, int(round(seconds)))
+    if seconds < 60:
+        return f'{seconds}s'
+    minutes, seconds = divmod(seconds, 60)
+    if minutes < 60:
+        return f'{minutes}m {seconds:02d}s'
+    hours, minutes = divmod(minutes, 60)
+    if hours < 24:
+        return f'{hours}h {minutes:02d}m'
+    days, hours = divmod(hours, 24)
+    return f'{days}d {hours}h'
+
+
+def sparkline(values, width=10):
+    values = [value for value in values if value is not None and math.isfinite(value)][-width:]
+    if len(values) < 2:
+        return ''
+    low, high = min(values), max(values)
+    if high == low:
+        return '▄' * len(values)
+    shades = '▁▂▃▄▅▆▇█'
+    return ''.join(shades[min(7, int((value - low) / (high - low) * 7.999))] for value in values)
+
+
+def change_cell(current, previous):
+    """Loss change since the previous optimizer update; lower is better."""
+    if current is None or previous is None:
+        return f'{DIM}—{RESET}'
+    change = current - previous
+    if change == 0:
+        return f'{DIM}· 0{RESET}'
+    color, arrow = (GREEN, '▼') if change < 0 else (RED, '▲')
+    return f'{color}{arrow}{abs(change):.3f}{RESET}'
+
+
 class Dashboard:
     def __init__(self, plain=False, workers=1, status=None):
         self.status = status
@@ -52,38 +151,70 @@ class Dashboard:
         self.start = time.monotonic()
         self.moves = 0
         self.last_label = None
+        self.phase_key = None
+        self.phase_start = self.start
+        self.phase_completed = 0
         self.records_seen = 0
         self.monitoring = {mode: [] for mode in MODES}
         self.recent = {mode: deque(maxlen=128) for mode in MODES}
+        self.iteration_seen = None
+        self.iteration_start = self.start
+        self.iteration_durations = deque(maxlen=6)
 
     def show(self, state, device, detail='', force=False):
         if self.status:
             self.status.write(state, device, self.moves, detail)
         now = time.monotonic()
-        label = (state['mode'], state['phase'], state['iteration'], len(state['records']))
+        label = (state['mode'], state['phase'], state['iteration'], state['update_index'], len(state['records']))
         if not force and (now - self.last < 0.2 or (not self.tty and label == self.last_label)):
             return
         self.last, self.last_label = now, label
         terminal = shutil.get_terminal_size((86, 24))
         width = max(30, min(110, terminal.columns))
-        game = next(iter(state.get('active_games', [])), state.get('game'))
-        phase = state['phase']
-        target = evaluation_target(state) if phase == 'eval' else state['config']['games']
-        fraction = 1 if phase == 'done' else state['game_index'] / target
+        inner = max(20, width - 4)
+        cfg, phase = state['config'], state['phase']
+        active = [g for g in state.get('active_games', [])
+                  if g['state']['winner'] == -1 and g['ply'] < cfg['max_plies']
+                  and g['history'].get(key(g['state']['position']), 0) < 3]
+        target = cfg['updates'] if phase == 'update' else evaluation_target(state) if phase == 'eval' else cfg['games']
+        completed = state['update_index'] if phase == 'update' else state['game_index']
+        unit = 'updates' if phase == 'update' else 'games'
+        phase_key = (state['mode'], phase, state['iteration'])
+        if phase_key != self.phase_key:
+            self.phase_key, self.phase_start, self.phase_completed = phase_key, now, completed
+        phase_elapsed = now - self.phase_start
+        advanced = completed - self.phase_completed
+        rate = advanced / max(phase_elapsed, .01)
+        eta = f"{(target - completed) / rate:.0f}s" if rate > 0 and completed < target else '—'
+        fraction = 1 if phase == 'done' else min(1, completed / max(1, target))
         bar = '━' * int(24 * fraction) + '·' * (24 - int(24 * fraction))
         elapsed = now - self.start
+        task = {'train': 'Generate training games', 'update': 'Optimize policy & value network',
+                'eval': 'Evaluate against negamax', 'done': 'Experiment complete'}.get(phase, phase)
+        tasks = Counter(g.get('task', 'standard') for g in active)
+        task_text = ' | '.join(f'{name}: {count}' for name, count in sorted(tasks.items())) or 'none'
+        plies = [g['ply'] for g in active]
+        ply_text = f"{sum(plies)/len(plies):.1f} mean ({min(plies)}–{max(plies)})" if plies else '—'
+        arm = state['arms'][state['mode']]
         lines = [
             'QUORIDOR  /  ALPHAZERO LAB',
-            f"{state['mode'].upper()}   {phase.upper()}   iteration {state['iteration']} / {state['config']['iterations']}",
-            f"[{bar}] games {state['game_index']}/{target}   device {device}",
-            f"Ply {game['ply'] if game else 0:3d}   replay {len(state['arms'][state['mode']]['replay']):5d}   "
-            f"session {elapsed:5.0f}s   {self.moves / max(elapsed, 0.01):.1f} moves/s",
-            f"{detail}  | active games {len(state.get('active_games', []))} | workers {self.workers}",
+            f"{state['mode'].upper()}   {phase.upper()}   iteration {state['iteration']} / {cfg['iterations']}",
+            f"Current task: {task}",
+            f"[{bar}] {completed}/{target} {unit} ({fraction:.0%})   device {device}" if phase != 'done' else 'All phases complete',
+            f"Phase {phase_elapsed:.0f}s | {rate*60:.1f} {unit}/min | phase ETA ~{eta}",
+            f"Active tasks: {task_text}",
+            f"Active games {len(active)}/{cfg.get('parallel_games', 1)} | ply {ply_text} | workers {self.workers}",
+            f"Replay {len(arm['replay']):,}/{cfg['replay_size']:,} | batch {cfg['batch_size']} | updates {state['update_index']}/{cfg['updates']}",
+            f"Session {elapsed:.0f}s | {self.moves:,} moves | {self.moves / max(elapsed, .01):.1f} moves/s",
         ]
-        # Plain output only displays these four lines. Do not rescan the entire
-        # experiment history to construct invisible dashboard sections.
+        if phase == 'eval':
+            suites = Counter(g.get('suite', 'monitor') for g in active)
+            lines.append('Evaluation suites: ' + (' | '.join(f'{k}: {v}' for k, v in sorted(suites.items())) or 'preparing'))
+        if detail:
+            lines.append(detail)
+        # Plain logs include live task metrics without scanning experiment history.
         if not self.tty:
-            print(' | '.join(lines[1:5]), flush=True)
+            print(' | '.join(lines[1:]), flush=True)
             return
         for record in state['records'][self.records_seen:]:
             if record['phase'] == 'train':
@@ -91,43 +222,203 @@ class Dashboard:
             elif record.get('suite', 'monitor') == 'monitor':
                 self.monitoring[record['mode']].append(record)
         self.records_seen = len(state['records'])
-        for mode in MODES:
-            arm = state['arms'][mode]
-            loss = arm['loss']
-            loss_text = f"policy {loss['policy']:.3f} / value {loss['value']:.3f}" if loss else 'awaiting updates'
-            evaluations = self.monitoring[mode]
-            if evaluations:
-                latest = max(r['iteration'] for r in evaluations)
-                results = [r['score'] for r in evaluations if r['iteration'] == latest]
-                wins, draws, losses = results.count(1.0), results.count(0.5), results.count(0.0)
-                baseline = [r['score'] for r in evaluations if r['iteration'] == 0]
-                delta = sum(results)/len(results) - sum(baseline)/len(baseline) if baseline else 0
-                result = f'{wins}W {draws}C {losses}L  score {sum(results)/len(results):.0%}  start {delta:+.0%}'
-            else:
-                result = 'pending'
-            lines += [f'{mode:8s}  loss {loss_text}', f'          vs fixed negamax: {result}']
-        recent = self.recent[state['mode']]
-        if recent:
-            repeat = sum(r['termination'] == 'repetition' for r in recent) / len(recent)
-            goals = sum(r['termination'] == 'goal' for r in recent) / len(recent)
-            lines += [f'Recent training: goals {goals:.0%} | repetition cutoffs {repeat:.0%} (C = artificial cutoff)']
-        if self.tty:
-            chart_height = max(2, min(6, terminal.lines - len(lines) - 7))
-            lines += loss_curves(state.get('loss_history', []), width - 4, chart_height)
-        lines += [f"Checkpoint: every {state['config'].get('checkpoint_seconds', 15):g}s + Ctrl-C (save & pause)"]
-        if state['config'].get('curriculum') == 'gated':
-            progress = curriculum_state(state)
-            lines += [f"Curriculum race-{progress['stage']} | passing streak {progress['streak']}"
-                      f"/{state['config']['curriculum_streak']} | replay {state['config'].get('replay_sampling')}"]
-        if self.tty:
-            colors = ['\033[1;36m', '\033[1m', '\033[36m']
-            decorated = [(colors[i] if i < len(colors) else '\033[0m') + line[:width-4] + '\033[0m' for i, line in enumerate(lines)]
-            decorated = [line.replace('●', '\033[36m●\033[0m').replace('◆', '\033[35m◆\033[0m')
-                         .replace('◎', '\033[33m◎\033[0m') for line in decorated]
-            border = '\033[36m' + '─' * max(1, width-2) + '\033[0m'
-            print('\033[2J\033[H' + border + '\n' + '\n'.join('  ' + line for line in decorated) + '\n' + border, flush=True)
+
+        if self.iteration_seen is None:
+            self.iteration_seen, self.iteration_start = state['iteration'], now
+        elif state['iteration'] != self.iteration_seen:
+            self.iteration_durations.append(max(0.0, now - self.iteration_start))
+            self.iteration_seen, self.iteration_start = state['iteration'], now
+        iteration = state['iteration']
+        total_iterations = max(1, cfg['iterations'])
+        if self.iteration_durations and iteration < total_iterations:
+            average = sum(self.iteration_durations) / len(self.iteration_durations)
+            iteration_eta = format_duration(average * (total_iterations - iteration))
         else:
-            print(' | '.join(lines[1:5]), flush=True)
+            iteration_eta = '—'
+
+        def heading(title, note=''):
+            label_text = f'{BOLD}{CYAN}▎ {title.upper()}{RESET}'
+            if note:
+                return join_columns(label_text, f'{DIM}{note}{RESET}', inner, gap=1)
+            fill = max(0, inner - visible_width(label_text) - 1)
+            return label_text + ' ' + f'{DIM}{"─" * fill}{RESET}'
+
+        def cell(text, size):
+            return pad(clip(text, size), size)
+
+        def evaluation_text(mode_name):
+            evaluations = self.monitoring[mode_name]
+            if not evaluations:
+                return f'{DIM}pending evaluation{RESET}'
+            latest = max(row['iteration'] for row in evaluations)
+            results = [row['score'] for row in evaluations if row['iteration'] == latest]
+            wins, draws, losses = results.count(1.0), results.count(0.5), results.count(0.0)
+            score = sum(results) / len(results)
+            baseline = [row['score'] for row in evaluations if row['iteration'] == 0]
+            delta = score - sum(baseline) / len(baseline) if baseline else 0
+            color = GREEN if score >= .5 else RED
+            return (f'{DIM}iter {latest}{RESET}  {wins}W {draws}C {losses}L  '
+                    f'{color}{score:.0%}{RESET}  {DIM}start{RESET} {delta:+.0%}')
+
+        arm_rows = []
+        for mode_name in MODES:
+            mode_arm = state['arms'][mode_name]
+            history = [row for row in state.get('loss_history', []) if row['mode'] == mode_name]
+            latest_loss = history[-1] if history else mode_arm['loss']
+            previous = history[-2] if len(history) >= 2 else None
+            marker = '●' if mode_name == 'selfplay' else '◆'
+            if latest_loss:
+                loss_text = f"{latest_loss['policy']:.3f} / {latest_loss['value']:.3f}"
+                previous_policy = previous['policy'] if previous else None
+                previous_value = previous['value'] if previous else None
+                delta_text = (f"{change_cell(latest_loss['policy'], previous_policy)} / "
+                              f"{change_cell(latest_loss['value'], previous_value)}")
+            else:
+                loss_text, delta_text = 'awaiting updates', f'{DIM}— / —{RESET}'
+            policy_trend = sparkline([row['policy'] for row in history], 7)
+            value_trend = sparkline([row['value'] for row in history], 7)
+            trend_text = (f'p{policy_trend} v{value_trend}' if policy_trend and value_trend
+                          else f'{DIM}—{RESET}')
+            arm_rows.append((marker, mode_name, loss_text, delta_text, trend_text, evaluation_text(mode_name)))
+
+        mode_color = CYAN if state['mode'] == 'selfplay' else MAGENTA
+        bar_width = 20 if inner >= 76 else 10
+        run_fraction = min(1.0, (max(0, iteration - 1) + fraction) / total_iterations)
+        if inner >= 60:
+            run_text = (f'{DIM}run{RESET} {progress_bar(run_fraction, bar_width)} {run_fraction:5.1%}  '
+                        f'{DIM}iter ETA{RESET} {iteration_eta}')
+            iteration_text = (f'{BOLD}{mode_color}{state["mode"].upper()}{RESET}  '
+                              f'{DIM}iteration{RESET} {BOLD}{iteration}{RESET}/{total_iterations}')
+        else:
+            run_text = ''
+            iteration_text = (f'{BOLD}{mode_color}{state["mode"].upper()}{RESET}  '
+                              f'{BOLD}{iteration}{RESET}/{total_iterations}  '
+                              f'{progress_bar(run_fraction, bar_width)} {run_fraction:.0%}')
+        header_right = f'{DIM}device{RESET} {BOLD}{device}{RESET}'
+        if inner >= 60:
+            header_right += f'   {DIM}session{RESET} {format_duration(elapsed)}'
+        core = [
+            join_columns(f'{BOLD}{CYAN}QUORIDORANER{RESET} {DIM}/{RESET} {BOLD}ALPHAZERO LAB{RESET}',
+                         header_right, inner),
+            f'{CYAN}{"─" * inner}{RESET}',
+            join_columns(iteration_text, run_text, inner) if run_text else iteration_text,
+        ]
+        pipeline = []
+        for name in ('train', 'update', 'eval'):
+            style = f'{BOLD}{mode_color}' if name == phase else DIM
+            pipeline.append(f'{style}{name.upper() if name == phase else name}{RESET}')
+        task_line = f'{BOLD}Current task: {task}{RESET}'
+        core.append(join_columns(task_line, f' {DIM}▸{RESET} '.join(pipeline), inner)
+                    if inner >= 84 else task_line)
+        if phase == 'done':
+            core.append(f'{progress_bar(1, bar_width)} {DIM}all phases complete{RESET}')
+        else:
+            detail_text = f'{phase_elapsed:.0f}s'
+            if inner >= 72:
+                detail_text += f'   {rate * 60:.1f} {unit}/min'
+            core.append(f'{DIM}Phase{RESET} {progress_bar(fraction, bar_width)} '
+                        f'{completed}/{target} {unit} ({fraction:.0%})   '
+                        f'{detail_text}   {DIM}ETA{RESET} ~{eta}')
+        core += [
+            '',
+            heading('live'),
+            f'{CYAN}Active games:{RESET} {len(active)}/{cfg.get("parallel_games", 1)}  '
+            f'{DIM}·{RESET}  ply {ply_text}  {DIM}·{RESET}  workers {self.workers}',
+            f'{CYAN}Active tasks: {task_text}{RESET}',
+            f'{CYAN}Replay {len(arm["replay"]):,}/{cfg["replay_size"]:,}{RESET}  {DIM}·{RESET}  '
+            f'batch {cfg["batch_size"]}  {DIM}·{RESET}  updates {state["update_index"]}/{cfg["updates"]}',
+            f'{CYAN}Session{RESET} {elapsed:.0f}s  {DIM}|{RESET}  {self.moves:,} moves  '
+            f'{DIM}|{RESET}  {self.moves / max(elapsed, .01):.1f} moves/s',
+        ]
+        if phase == 'eval':
+            suites = Counter(g.get('suite', 'monitor') for g in active)
+            suite_text = ' | '.join(f'{name}: {count}' for name, count in sorted(suites.items())) or 'preparing'
+            core.append(f'{CYAN}Evaluation suites:{RESET} {suite_text}')
+
+        core += ['', heading('arms', 'loss is policy / value · lower is better')]
+        if inner >= 102:
+            core.append(f'{DIM}{"arm":<11}{"loss (p / v)":<18}{"Δ update":<18}{"trend":<18}'
+                        f'evaluation{RESET}')
+            for marker, mode_name, loss_text, delta_text, trend_text, eval_text in arm_rows:
+                core.append(cell(f'{marker} {mode_name}', 11) + cell(loss_text, 18) +
+                            cell(delta_text, 18) + cell(trend_text, 18) + eval_text)
+        elif inner >= 72:
+            core.append(f'{DIM}{"arm":<11}{"loss (p / v)":<18}evaluation{RESET}')
+            for marker, mode_name, loss_text, _delta, _trend, eval_text in arm_rows:
+                core.append(cell(f'{marker} {mode_name}', 11) + cell(loss_text, 18) + eval_text)
+        else:
+            for marker, mode_name, loss_text, _delta, trend_text, eval_text in arm_rows:
+                core.append(cell(f'{marker} {mode_name}', 11) + loss_text)
+                core.append(f'  {eval_text}  {trend_text}')
+
+        recent = self.recent[state['mode']]
+        quality = ['', heading('training window')]
+        if recent:
+            repeat = sum(row['termination'] == 'repetition' for row in recent) / len(recent)
+            goals = sum(row['termination'] == 'goal' for row in recent) / len(recent)
+            limit = sum(row['termination'] == 'maxPlies' for row in recent) / len(recent)
+            mean_plies = sum(row['plies'] for row in recent) / len(recent)
+            goal_color = GREEN if goals >= .8 else YELLOW if goals >= .5 else RED
+            repeat_color = GREEN if repeat <= .05 else YELLOW if repeat <= .2 else RED
+            limit_color = GREEN if limit <= .05 else YELLOW if limit <= .2 else RED
+            quality += [
+                f'{CYAN}Recent {len(recent)} training games:{RESET} '
+                f'goals {goal_color}{goals:.0%}{RESET}  {DIM}|{RESET}  '
+                f'repetition {repeat_color}{repeat:.0%}{RESET}  {DIM}|{RESET}  '
+                f'move limit {limit_color}{limit:.0%}{RESET}',
+                f'{CYAN}Recent game length{RESET} {mean_plies:.1f} plies  '
+                f'{DIM}|  cutoffs are artificial, not draws{RESET}',
+            ]
+        else:
+            quality.append(f'{DIM}Awaiting completed training games…{RESET}')
+
+        settings = []
+        if cfg.get('curriculum') == 'gated':
+            progress = curriculum_state(state)
+            settings.append(f'{CYAN}Curriculum{RESET} race-{progress["stage"]}  {DIM}|{RESET}  passing streak '
+                            f'{progress["streak"]}/{cfg["curriculum_streak"]}  {DIM}|{RESET}  '
+                            f'replay {cfg.get("replay_sampling")}')
+        elif cfg.get('curriculum') == 'races':
+            stage = min(3, max(0, iteration - 1) // max(1, cfg.get('curriculum_interval', 25)))
+            settings.append(f'{CYAN}Curriculum{RESET} race-{stage}  {DIM}|{RESET}  '
+                            f'interval {cfg.get("curriculum_interval", 25)} iterations')
+        if cfg.get('adaptive_negamax'):
+            opponent = state.get('adaptive', {})
+            settings.append(f'{CYAN}Adaptive opponent{RESET} {opponent.get("nodes", "—")} nodes  {DIM}|{RESET}  '
+                            f'promotion streak {opponent.get("streak", 0)}/{cfg.get("promotion_streak", 2)}')
+        settings.append(f'{CYAN}Checkpoint{RESET} every {cfg.get("checkpoint_seconds", 15):g}s '
+                        f'+ Ctrl-C (save & pause)')
+        if detail:
+            settings.append(f'{CYAN}Latest{RESET} {detail}')
+        config_section = ['', heading('run settings')] + settings
+
+        # Prefer the live telemetry; add history panels and settings while the
+        # terminal has room, so short windows still show the important numbers.
+        budget = max(8, terminal.lines - 2)
+        info = list(core)
+        chosen = []
+        for group in (quality, config_section):
+            if len(info) + len(group) + 6 <= budget:
+                info += group
+                chosen.append(group)
+        remaining = budget - len(info)
+        chart_height = min(5, max(0, remaining - 5))
+        chart = loss_curves(state.get('loss_history', []), inner, chart_height) if chart_height >= 2 else []
+        if chart and len(chart) + 2 <= remaining:
+            updates = max((sum(1 for row in state.get('loss_history', []) if row['mode'] == name)
+                           for name in MODES), default=0)
+            info += ['', heading('loss curves', f'{updates:,} updates' if updates else '')] + chart
+        else:
+            for group in (quality, config_section):
+                if group not in chosen and len(info) + len(group) <= budget:
+                    info += group
+
+        info = [line.replace('●', f'{CYAN}●{RESET}').replace('◆', f'{MAGENTA}◆{RESET}')
+                    .replace('◎', f'{YELLOW}◎{RESET}') for line in info]
+        info = [clip(line, inner) for line in info]
+        border = f'{CYAN}{"─" * max(1, width - 2)}{RESET}'
+        print('\033[2J\033[H' + border + '\n' + '\n'.join('  ' + line for line in info) + '\n' + border,
+              flush=True)
 
 
 def new_arm(initial, device, config=None):
@@ -338,8 +629,8 @@ def run(state, models, optimizers, rng, directory, device, plain):
             for game in state['active_games']:
                 position = game['state']['position']
                 winner = game['state']['winner']
-                if winner != -1 or game['history'][key(position)] >= 3 or game['ply'] >= cfg['max_plies']:
-                    reason = 'goal' if winner != -1 else ('repetition' if game['history'][key(position)] >= 3 else 'maxPlies')
+                if winner != -1 or game['history'][key(position)] >= repetition_limit(cfg, state['phase']) or game['ply'] >= cfg['max_plies']:
+                    reason = 'goal' if winner != -1 else ('repetition' if game['history'][key(position)] >= repetition_limit(cfg, state['phase']) else 'maxPlies')
                     finish_game(state, winner, reason, game)
                     bridge.ask(op='drop', ids=[game['id']])
                     display.show(state, device, f'Game {game["index"] + 1} finished: {reason}', force=True)
@@ -471,7 +762,11 @@ def arguments():
     parser.add_argument('--eval-games', type=int, default=20, help='Even number of monitoring games (color pairs)')
     parser.add_argument('--simulations', type=int, default=64)
     parser.add_argument('--architecture', choices=ARCHITECTURES, default='small',
-                        help='Original CNN or four residual blocks at 32/64 channels; saved on resume')
+                        help='Network and board representation variant; saved on resume')
+    parser.add_argument('--training-repetition-limit', type=int, choices=[2, 3], default=3,
+                        help='Training rollout cutoff at second/third occurrence; evaluation and search retain threefold')
+    parser.add_argument('--precision', choices=['fp32', 'bf16'], default='fp32',
+                        help='CUDA forward precision; BF16 requires supported GPU; saved on resume')
     parser.add_argument('--search-budget', choices=['fixed', 'randomized'], default='fixed')
     parser.add_argument('--fast-simulations', type=int, default=16, help='Shallow training search budget; value targets only')
     parser.add_argument('--full-search-probability', type=float, default=0.25)
@@ -502,7 +797,7 @@ def arguments():
     parser.add_argument('--game-scheduler', choices=['cohort', 'rolling'], default='rolling',
                         help='Refill completed game slots (rolling) or wait for the whole cohort')
     parser.add_argument('--mps-inference', choices=['eager', 'bucketed', 'hybrid'],
-                        help='Direct-engine MPS inference: stable GPU batches or hybrid CPU batches <=16 (default bucketed)')
+                        help='Direct-engine MPS inference: stable GPU batches or architecture-specific hybrid CPU cutoff (default bucketed)')
     parser.add_argument('--workers', type=int, help='CPU search workers: processes for bridge, threads for direct (default 1); can change on resume')
     parser.add_argument('--checkpoint-seconds', type=float, help='Periodic checkpoint interval (default 15 seconds); always save on Ctrl-C')
     args = parser.parse_args()
@@ -606,6 +901,8 @@ def main():
         device, measurements = select_device(args.device, min(state['config']['parallel_games'], state['config']['games']),
                                              state.get('selected_device') if args.resume else None,
                                              model_config=state['config'])
+        if device == 'cuda' and state['config'].get('precision') == 'bf16' and not torch.cuda.is_bf16_supported():
+            raise SystemExit('This GPU does not support BF16; create an FP32 run instead.')
         state['selected_device'] = device
         if measurements:
             (directory / 'device-benchmark.json').write_text(json.dumps(measurements, indent=2) + '\n')

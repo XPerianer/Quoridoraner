@@ -1,0 +1,54 @@
+{
+  "opponents": [
+    "gorisanson",
+    "sigma"
+  ],
+  "model": "/Users/dominikmeier/Documents/code/Quoridoraner/training/runs/az/colab/rl-model.pt",
+  "simulations": 400,
+  "goris_sims": 60000,
+  "sigma_sims": 400,
+  "pairs": 1,
+  "seed": 20261029,
+  "max_plies": 200,
+  "validate": false,
+  "out": "training/runs/external-matches-20261029",
+  "model_sha256": "f74d21d56445ff37fe8d8a35100ef02a400cfc1d4d38371dd7e216265cce13b6",
+  "sources": {
+    "quoridor-ai": {
+      "repo": "gorisanson/quoridor-ai",
+      "commit": "e15d6e7825e6f7c2f3a41de0ecef1af7aa290f1e",
+      "files": [
+        "src/js/game.js",
+        "src/js/ai.js",
+        "LICENSE",
+        "README.md"
+      ],
+      "sha256": {
+        "src/js/game.js": "153a4e54198031ac81eae3ab8b3bfbb7d855af9a569d7b132769c5685d3ca9aa",
+        "src/js/ai.js": "709861de3e7ca2fcdaa560bf972e0eee378e495fd65873f8c95b6026f6a22e74",
+        "LICENSE": "7b4df123a2bfbc13059593e5c6622f7eea15d31665bcb607d6cc7705354eb9d7",
+        "README.md": "5b8ffbb4944b00d50966a6ea21d8935ce1390ee43a26ea42181c503455d0af60"
+      }
+    },
+    "SigmaQuoridor": {
+      "repo": "bartolomeo3000/SigmaQuoridor",
+      "commit": "751186344fc52ad0c29bc65922e62c6fa915f006",
+      "files": [
+        "game.py",
+        "mcts.py",
+        "dual_network.py",
+        "LICENSE",
+        "README.md",
+        "runs/models_9x9_scratch/best.pt"
+      ],
+      "sha256": {
+        "game.py": "7dbe0ad916a07af74b87486e821a86733640c004aafdf9d533c52cf5826704ca",
+        "mcts.py": "f17c79e93f360086427cf2799728a3069a97b59d7f3a6855e6f3de80fd728d7c",
+        "dual_network.py": "c1b4e74d0cdff688580dd29a3cdea4b5fb498c6020324924936066702f301502",
+        "LICENSE": "b5e277822da3c9eb54eb04e9ee3c4f93bfeb769c829d5d0f70c99835a2f6733d",
+        "README.md": "4446f2bd6a6c3c7584f3ae1688b52797c56a96d1c4d03e715cf159c66b7c34ae",
+        "runs/models_9x9_scratch/best.pt": "7a61222c019679bfb6a721e5c9d1dd6b413c61a6debac3d11a1735133bb1af83"
+      }
+    }
+  }
+}

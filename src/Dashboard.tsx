@@ -50,7 +50,7 @@ function RunProgress({ run, mode, now }: { run: Run; mode: string; now: number }
 }
 export default function Dashboard() {
   const [now, setNow] = useState(() => Date.now())
-  const [tab, setTab] = useState('runs')
+  const [tab, setTab] = useState(() => new URLSearchParams(window.location.search).get('tab') ?? 'runs')
   const [runs, setRuns] = useState<Run[]>([])
   const [selected, setSelected] = useState<string[]>([])
   const [details, setDetails] = useState<Run[]>([])

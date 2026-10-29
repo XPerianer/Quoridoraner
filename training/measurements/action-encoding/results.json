@@ -1,0 +1,302 @@
+{
+  "updates": 150,
+  "batch_size": 64,
+  "training_positions": 1200,
+  "test_per_kind": 100,
+  "search_diagonal_positions": 30,
+  "seeds": [
+    1,
+    2,
+    3
+  ],
+  "results": [
+    {
+      "diagonal_fraction": 0.0,
+      "seed": 1,
+      "encoding": "destination",
+      "seconds": 1.2251819999946747,
+      "accuracy": {
+        "step": 1.0,
+        "straight": 1.0,
+        "diagonal": 1.0
+      },
+      "search": {
+        "8": 1.0,
+        "32": 1.0
+      },
+      "immediate_win_guard_accuracy": 1.0
+    },
+    {
+      "diagonal_fraction": 0.0,
+      "seed": 1,
+      "encoding": "relative",
+      "seconds": 1.1748288329981733,
+      "accuracy": {
+        "step": 1.0,
+        "straight": 1.0,
+        "diagonal": 0.0
+      },
+      "search": {
+        "8": 0.0,
+        "32": 0.0
+      },
+      "immediate_win_guard_accuracy": 1.0
+    },
+    {
+      "diagonal_fraction": 0.0,
+      "seed": 2,
+      "encoding": "destination",
+      "seconds": 1.1620927499898244,
+      "accuracy": {
+        "step": 1.0,
+        "straight": 1.0,
+        "diagonal": 1.0
+      },
+      "search": {
+        "8": 1.0,
+        "32": 1.0
+      },
+      "immediate_win_guard_accuracy": 1.0
+    },
+    {
+      "diagonal_fraction": 0.0,
+      "seed": 2,
+      "encoding": "relative",
+      "seconds": 1.166491291980492,
+      "accuracy": {
+        "step": 1.0,
+        "straight": 1.0,
+        "diagonal": 0.0
+      },
+      "search": {
+        "8": 0.0,
+        "32": 0.0
+      },
+      "immediate_win_guard_accuracy": 1.0
+    },
+    {
+      "diagonal_fraction": 0.0,
+      "seed": 3,
+      "encoding": "destination",
+      "seconds": 1.1739869999873918,
+      "accuracy": {
+        "step": 1.0,
+        "straight": 1.0,
+        "diagonal": 1.0
+      },
+      "search": {
+        "8": 1.0,
+        "32": 1.0
+      },
+      "immediate_win_guard_accuracy": 1.0
+    },
+    {
+      "diagonal_fraction": 0.0,
+      "seed": 3,
+      "encoding": "relative",
+      "seconds": 1.1928815830033273,
+      "accuracy": {
+        "step": 1.0,
+        "straight": 1.0,
+        "diagonal": 0.0
+      },
+      "search": {
+        "8": 0.0,
+        "32": 0.0
+      },
+      "immediate_win_guard_accuracy": 1.0
+    },
+    {
+      "diagonal_fraction": 0.05,
+      "seed": 1,
+      "encoding": "destination",
+      "seconds": 1.233331208000891,
+      "accuracy": {
+        "step": 1.0,
+        "straight": 1.0,
+        "diagonal": 1.0
+      },
+      "search": {
+        "8": 1.0,
+        "32": 1.0
+      },
+      "immediate_win_guard_accuracy": 1.0
+    },
+    {
+      "diagonal_fraction": 0.05,
+      "seed": 1,
+      "encoding": "relative",
+      "seconds": 1.1721209999814164,
+      "accuracy": {
+        "step": 1.0,
+        "straight": 1.0,
+        "diagonal": 1.0
+      },
+      "search": {
+        "8": 1.0,
+        "32": 1.0
+      },
+      "immediate_win_guard_accuracy": 1.0
+    },
+    {
+      "diagonal_fraction": 0.05,
+      "seed": 2,
+      "encoding": "destination",
+      "seconds": 1.2538462080119643,
+      "accuracy": {
+        "step": 1.0,
+        "straight": 1.0,
+        "diagonal": 1.0
+      },
+      "search": {
+        "8": 1.0,
+        "32": 1.0
+      },
+      "immediate_win_guard_accuracy": 1.0
+    },
+    {
+      "diagonal_fraction": 0.05,
+      "seed": 2,
+      "encoding": "relative",
+      "seconds": 1.19293537500198,
+      "accuracy": {
+        "step": 1.0,
+        "straight": 1.0,
+        "diagonal": 1.0
+      },
+      "search": {
+        "8": 1.0,
+        "32": 1.0
+      },
+      "immediate_win_guard_accuracy": 1.0
+    },
+    {
+      "diagonal_fraction": 0.05,
+      "seed": 3,
+      "encoding": "destination",
+      "seconds": 1.183610874984879,
+      "accuracy": {
+        "step": 1.0,
+        "straight": 1.0,
+        "diagonal": 1.0
+      },
+      "search": {
+        "8": 1.0,
+        "32": 1.0
+      },
+      "immediate_win_guard_accuracy": 1.0
+    },
+    {
+      "diagonal_fraction": 0.05,
+      "seed": 3,
+      "encoding": "relative",
+      "seconds": 1.179019207978854,
+      "accuracy": {
+        "step": 1.0,
+        "straight": 1.0,
+        "diagonal": 1.0
+      },
+      "search": {
+        "8": 1.0,
+        "32": 1.0
+      },
+      "immediate_win_guard_accuracy": 1.0
+    },
+    {
+      "diagonal_fraction": 0.3333333333333333,
+      "seed": 1,
+      "encoding": "destination",
+      "seconds": 1.19200616600574,
+      "accuracy": {
+        "step": 1.0,
+        "straight": 1.0,
+        "diagonal": 1.0
+      },
+      "search": {
+        "8": 1.0,
+        "32": 1.0
+      },
+      "immediate_win_guard_accuracy": 1.0
+    },
+    {
+      "diagonal_fraction": 0.3333333333333333,
+      "seed": 1,
+      "encoding": "relative",
+      "seconds": 1.1844612080021761,
+      "accuracy": {
+        "step": 1.0,
+        "straight": 1.0,
+        "diagonal": 1.0
+      },
+      "search": {
+        "8": 1.0,
+        "32": 1.0
+      },
+      "immediate_win_guard_accuracy": 1.0
+    },
+    {
+      "diagonal_fraction": 0.3333333333333333,
+      "seed": 2,
+      "encoding": "destination",
+      "seconds": 1.1889606249751523,
+      "accuracy": {
+        "step": 1.0,
+        "straight": 1.0,
+        "diagonal": 1.0
+      },
+      "search": {
+        "8": 1.0,
+        "32": 1.0
+      },
+      "immediate_win_guard_accuracy": 1.0
+    },
+    {
+      "diagonal_fraction": 0.3333333333333333,
+      "seed": 2,
+      "encoding": "relative",
+      "seconds": 1.1969950000056997,
+      "accuracy": {
+        "step": 1.0,
+        "straight": 1.0,
+        "diagonal": 1.0
+      },
+      "search": {
+        "8": 1.0,
+        "32": 1.0
+      },
+      "immediate_win_guard_accuracy": 1.0
+    },
+    {
+      "diagonal_fraction": 0.3333333333333333,
+      "seed": 3,
+      "encoding": "destination",
+      "seconds": 1.1653898330114316,
+      "accuracy": {
+        "step": 1.0,
+        "straight": 1.0,
+        "diagonal": 1.0
+      },
+      "search": {
+        "8": 1.0,
+        "32": 1.0
+      },
+      "immediate_win_guard_accuracy": 1.0
+    },
+    {
+      "diagonal_fraction": 0.3333333333333333,
+      "seed": 3,
+      "encoding": "relative",
+      "seconds": 1.1697319170052651,
+      "accuracy": {
+        "step": 1.0,
+        "straight": 1.0,
+        "diagonal": 1.0
+      },
+      "search": {
+        "8": 1.0,
+        "32": 1.0
+      },
+      "immediate_win_guard_accuracy": 1.0
+    }
+  ]
+}

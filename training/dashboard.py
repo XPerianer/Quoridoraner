@@ -15,6 +15,7 @@ LOCK = threading.Lock()
 MODELS = OrderedDict()
 BRIDGE = None
 SUMMARIES = {}
+AZ_ENGINE = None
 
 
 def run_path(name):
@@ -52,8 +53,63 @@ def describe(path, detail=False):
     return result
 
 
+def az_runs():
+    """AlphaZero runs from az.py: every checkpoint folder under runs/az (not train.py's format)."""
+    root = RUNS / 'az'
+    folders = sorted({p.parent for p in root.rglob('*model*.pt')}) if root.exists() else []
+    result = []
+    for path in folders:
+        bots = sorted((f'az:{p.stem}' for p in path.glob('*model*.pt')), key=lambda b: ('rl-model' not in b, b))
+        config = read(path / 'rl-config.json', None) or read(path / 'config.json', None) or read(path / 'pretrain.json', {})
+        result.append(dict(id=str(path.relative_to(RUNS)), config=config if isinstance(config, dict) else {},
+                           summary=[], status=None, bots=bots, performance={},
+                           updated=max(p.stat().st_mtime for p in path.iterdir() if p.is_file())))
+    return result
+
+
+def az_move(data):
+    """Moves from az.py: an MCTS checkpoint ('az:<stem>') or the C++ reference negamax ('negamax:<nodes>')."""
+    global AZ_ENGINE
+    from collections import Counter
+    from direct import pack
+    import az
+    positions = [pack(p) for p in data['positions']]
+    position = positions[-1]
+    if az.winner(position) != -1:
+        raise ValueError('Game has ended')
+    with LOCK:
+        if AZ_ENGINE is None:
+            AZ_ENGINE = az.Engine(2)
+        if data['mode'].startswith('negamax:'):
+            nodes = int(data['mode'].split(':', 1)[1])
+            if not 1 <= nodes <= 1_000_000:
+                raise ValueError('Nodes must be between 1 and 1,000,000')
+            return {'move': int(AZ_ENGINE.negamax([position], nodes)[0])}
+        checkpoint = run_path(data['run']) / f"{data['mode'][3:]}.pt"
+        if not checkpoint.is_file():
+            raise ValueError('Unknown bot')
+        cache_key = (str(checkpoint), checkpoint.stat().st_mtime_ns)
+        if cache_key not in MODELS:
+            MODELS[cache_key] = az.load_model(checkpoint, 'cpu')[0]
+            while len(MODELS) > 4:
+                MODELS.popitem(last=False)
+        MODELS.move_to_end(cache_key)
+        simulations = int(data.get('simulations', 64))
+        if not 1 <= simulations <= 2000:
+            raise ValueError('Simulations must be between 1 and 2000')
+        # Models were trained with a 100-ply horizon; past it, use the dashboard's 200-ply limit.
+        ply = len(positions) - 1
+        job = dict(tree=0, position=position, history=dict(Counter(positions)), ply=ply,
+                   max_plies=100 if ply < 100 else 200)
+        AZ_ENGINE.drop(0)
+        policy, _ = AZ_ENGINE.search(MODELS[cache_key], [job], simulations, 'cpu')
+        return {'move': int(policy[0].argmax())}
+
+
 def bot_move(data):
     global BRIDGE
+    if data['mode'].startswith(('az:', 'negamax:')):
+        return az_move(data)
     import torch
     from bridge import create_bridge
     from core import model_from_config, search, choose, key
@@ -112,10 +168,18 @@ class Handler(SimpleHTTPRequestHandler):
             return super().do_GET()
         try:
             if parsed.path == '/api/runs':
-                paths = sorted(RUNS.rglob('config.json')) if RUNS.exists() else []
-                return self.respond(sorted([describe(p.parent) for p in paths], key=lambda r: r['updated'], reverse=True))
+                paths = sorted(p for p in RUNS.rglob('config.json') if not p.is_relative_to(RUNS / 'az')) if RUNS.exists() else []
+                runs = [describe(p.parent) for p in paths] + az_runs()
+                return self.respond(sorted(runs, key=lambda r: r['updated'], reverse=True))
             if parsed.path == '/api/run':
-                return self.respond(describe(run_path(parse_qs(parsed.query)['id'][0]), True))
+                name = parse_qs(parsed.query)['id'][0]
+                path = run_path(name)
+                if path.is_relative_to(RUNS.resolve() / 'az'):
+                    run = next((r for r in az_runs() if r['id'] == name), None)
+                    if run is None:
+                        raise ValueError('Unknown run')
+                    return self.respond(run)
+                return self.respond(describe(path, True))
             self.respond({'error': 'Not found'}, 404)
         except (ValueError, KeyError, OSError) as exc:
             self.respond({'error': str(exc)}, 400)

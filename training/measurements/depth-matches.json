@@ -1,0 +1,933 @@
+{
+  "method": "20 paired standard two-wall games per seed and arm, seeds 1/2; residual versus matching small checkpoint. Both sides use 64 simulations with a fresh tree per move. Counts reported from residual perspective. Cutoffs receive half score, not goal wins. No throughput comparison; original trainer resumed during the end of this phase.",
+  "results": [
+    {
+      "architecture": "residual32",
+      "seed": 1,
+      "mode": "selfplay",
+      "opponent": "small",
+      "result": {
+        "suite": "standard-2",
+        "games": 20,
+        "wins": 8,
+        "cutoffs": 8,
+        "losses": 4,
+        "score": 0.6,
+        "records": [
+          {
+            "score": 0.5,
+            "plies": 7,
+            "reason": "cutoff"
+          },
+          {
+            "score": 1.0,
+            "plies": 12,
+            "reason": "goal"
+          },
+          {
+            "score": 0.5,
+            "plies": 14,
+            "reason": "cutoff"
+          },
+          {
+            "score": 1.0,
+            "plies": 15,
+            "reason": "goal"
+          },
+          {
+            "score": 1.0,
+            "plies": 15,
+            "reason": "goal"
+          },
+          {
+            "score": 0.5,
+            "plies": 16,
+            "reason": "cutoff"
+          },
+          {
+            "score": 0.5,
+            "plies": 16,
+            "reason": "cutoff"
+          },
+          {
+            "score": 0.5,
+            "plies": 18,
+            "reason": "cutoff"
+          },
+          {
+            "score": 1.0,
+            "plies": 19,
+            "reason": "goal"
+          },
+          {
+            "score": 1.0,
+            "plies": 19,
+            "reason": "goal"
+          },
+          {
+            "score": 1.0,
+            "plies": 21,
+            "reason": "goal"
+          },
+          {
+            "score": 1.0,
+            "plies": 23,
+            "reason": "goal"
+          },
+          {
+            "score": 0.5,
+            "plies": 26,
+            "reason": "cutoff"
+          },
+          {
+            "score": 0.5,
+            "plies": 28,
+            "reason": "cutoff"
+          },
+          {
+            "score": 0.0,
+            "plies": 33,
+            "reason": "goal"
+          },
+          {
+            "score": 1.0,
+            "plies": 35,
+            "reason": "goal"
+          },
+          {
+            "score": 0.0,
+            "plies": 49,
+            "reason": "goal"
+          },
+          {
+            "score": 0.5,
+            "plies": 52,
+            "reason": "cutoff"
+          },
+          {
+            "score": 0.0,
+            "plies": 59,
+            "reason": "goal"
+          },
+          {
+            "score": 0.0,
+            "plies": 65,
+            "reason": "goal"
+          }
+        ]
+      }
+    },
+    {
+      "architecture": "residual64",
+      "seed": 1,
+      "mode": "selfplay",
+      "opponent": "small",
+      "result": {
+        "suite": "standard-2",
+        "games": 20,
+        "wins": 4,
+        "cutoffs": 12,
+        "losses": 4,
+        "score": 0.5,
+        "records": [
+          {
+            "score": 0.5,
+            "plies": 10,
+            "reason": "cutoff"
+          },
+          {
+            "score": 0.5,
+            "plies": 10,
+            "reason": "cutoff"
+          },
+          {
+            "score": 0.5,
+            "plies": 13,
+            "reason": "cutoff"
+          },
+          {
+            "score": 0.5,
+            "plies": 15,
+            "reason": "cutoff"
+          },
+          {
+            "score": 0.5,
+            "plies": 16,
+            "reason": "cutoff"
+          },
+          {
+            "score": 0.5,
+            "plies": 18,
+            "reason": "cutoff"
+          },
+          {
+            "score": 0.5,
+            "plies": 18,
+            "reason": "cutoff"
+          },
+          {
+            "score": 0.5,
+            "plies": 20,
+            "reason": "cutoff"
+          },
+          {
+            "score": 0.5,
+            "plies": 29,
+            "reason": "cutoff"
+          },
+          {
+            "score": 0.5,
+            "plies": 34,
+            "reason": "cutoff"
+          },
+          {
+            "score": 0.0,
+            "plies": 35,
+            "reason": "goal"
+          },
+          {
+            "score": 0.5,
+            "plies": 38,
+            "reason": "cutoff"
+          },
+          {
+            "score": 1.0,
+            "plies": 39,
+            "reason": "goal"
+          },
+          {
+            "score": 0.0,
+            "plies": 43,
+            "reason": "goal"
+          },
+          {
+            "score": 0.0,
+            "plies": 49,
+            "reason": "goal"
+          },
+          {
+            "score": 0.5,
+            "plies": 60,
+            "reason": "cutoff"
+          },
+          {
+            "score": 0.0,
+            "plies": 65,
+            "reason": "goal"
+          },
+          {
+            "score": 1.0,
+            "plies": 75,
+            "reason": "goal"
+          },
+          {
+            "score": 1.0,
+            "plies": 81,
+            "reason": "goal"
+          },
+          {
+            "score": 1.0,
+            "plies": 85,
+            "reason": "goal"
+          }
+        ]
+      }
+    },
+    {
+      "architecture": "residual32",
+      "seed": 1,
+      "mode": "negamax",
+      "opponent": "small",
+      "result": {
+        "suite": "standard-2",
+        "games": 20,
+        "wins": 0,
+        "cutoffs": 20,
+        "losses": 0,
+        "score": 0.5,
+        "records": [
+          {
+            "score": 0.5,
+            "plies": 7,
+            "reason": "cutoff"
+          },
+          {
+            "score": 0.5,
+            "plies": 8,
+            "reason": "cutoff"
+          },
+          {
+            "score": 0.5,
+            "plies": 9,
+            "reason": "cutoff"
+          },
+          {
+            "score": 0.5,
+            "plies": 10,
+            "reason": "cutoff"
+          },
+          {
+            "score": 0.5,
+            "plies": 10,
+            "reason": "cutoff"
+          },
+          {
+            "score": 0.5,
+            "plies": 11,
+            "reason": "cutoff"
+          },
+          {
+            "score": 0.5,
+            "plies": 11,
+            "reason": "cutoff"
+          },
+          {
+            "score": 0.5,
+            "plies": 12,
+            "reason": "cutoff"
+          },
+          {
+            "score": 0.5,
+            "plies": 12,
+            "reason": "cutoff"
+          },
+          {
+            "score": 0.5,
+            "plies": 13,
+            "reason": "cutoff"
+          },
+          {
+            "score": 0.5,
+            "plies": 13,
+            "reason": "cutoff"
+          },
+          {
+            "score": 0.5,
+            "plies": 14,
+            "reason": "cutoff"
+          },
+          {
+            "score": 0.5,
+            "plies": 14,
+            "reason": "cutoff"
+          },
+          {
+            "score": 0.5,
+            "plies": 14,
+            "reason": "cutoff"
+          },
+          {
+            "score": 0.5,
+            "plies": 15,
+            "reason": "cutoff"
+          },
+          {
+            "score": 0.5,
+            "plies": 16,
+            "reason": "cutoff"
+          },
+          {
+            "score": 0.5,
+            "plies": 16,
+            "reason": "cutoff"
+          },
+          {
+            "score": 0.5,
+            "plies": 17,
+            "reason": "cutoff"
+          },
+          {
+            "score": 0.5,
+            "plies": 19,
+            "reason": "cutoff"
+          },
+          {
+            "score": 0.5,
+            "plies": 20,
+            "reason": "cutoff"
+          }
+        ]
+      }
+    },
+    {
+      "architecture": "residual64",
+      "seed": 1,
+      "mode": "negamax",
+      "opponent": "small",
+      "result": {
+        "suite": "standard-2",
+        "games": 20,
+        "wins": 0,
+        "cutoffs": 20,
+        "losses": 0,
+        "score": 0.5,
+        "records": [
+          {
+            "score": 0.5,
+            "plies": 6,
+            "reason": "cutoff"
+          },
+          {
+            "score": 0.5,
+            "plies": 7,
+            "reason": "cutoff"
+          },
+          {
+            "score": 0.5,
+            "plies": 7,
+            "reason": "cutoff"
+          },
+          {
+            "score": 0.5,
+            "plies": 8,
+            "reason": "cutoff"
+          },
+          {
+            "score": 0.5,
+            "plies": 9,
+            "reason": "cutoff"
+          },
+          {
+            "score": 0.5,
+            "plies": 12,
+            "reason": "cutoff"
+          },
+          {
+            "score": 0.5,
+            "plies": 12,
+            "reason": "cutoff"
+          },
+          {
+            "score": 0.5,
+            "plies": 14,
+            "reason": "cutoff"
+          },
+          {
+            "score": 0.5,
+            "plies": 14,
+            "reason": "cutoff"
+          },
+          {
+            "score": 0.5,
+            "plies": 14,
+            "reason": "cutoff"
+          },
+          {
+            "score": 0.5,
+            "plies": 16,
+            "reason": "cutoff"
+          },
+          {
+            "score": 0.5,
+            "plies": 18,
+            "reason": "cutoff"
+          },
+          {
+            "score": 0.5,
+            "plies": 18,
+            "reason": "cutoff"
+          },
+          {
+            "score": 0.5,
+            "plies": 19,
+            "reason": "cutoff"
+          },
+          {
+            "score": 0.5,
+            "plies": 27,
+            "reason": "cutoff"
+          },
+          {
+            "score": 0.5,
+            "plies": 34,
+            "reason": "cutoff"
+          },
+          {
+            "score": 0.5,
+            "plies": 34,
+            "reason": "cutoff"
+          },
+          {
+            "score": 0.5,
+            "plies": 40,
+            "reason": "cutoff"
+          },
+          {
+            "score": 0.5,
+            "plies": 50,
+            "reason": "cutoff"
+          },
+          {
+            "score": 0.5,
+            "plies": 52,
+            "reason": "cutoff"
+          }
+        ]
+      }
+    },
+    {
+      "architecture": "residual32",
+      "seed": 2,
+      "mode": "selfplay",
+      "opponent": "small",
+      "result": {
+        "suite": "standard-2",
+        "games": 20,
+        "wins": 5,
+        "cutoffs": 2,
+        "losses": 13,
+        "score": 0.3,
+        "records": [
+          {
+            "score": 0.0,
+            "plies": 12,
+            "reason": "goal"
+          },
+          {
+            "score": 0.0,
+            "plies": 13,
+            "reason": "goal"
+          },
+          {
+            "score": 0.0,
+            "plies": 15,
+            "reason": "goal"
+          },
+          {
+            "score": 0.0,
+            "plies": 16,
+            "reason": "goal"
+          },
+          {
+            "score": 0.0,
+            "plies": 17,
+            "reason": "goal"
+          },
+          {
+            "score": 0.0,
+            "plies": 17,
+            "reason": "goal"
+          },
+          {
+            "score": 0.0,
+            "plies": 20,
+            "reason": "goal"
+          },
+          {
+            "score": 1.0,
+            "plies": 21,
+            "reason": "goal"
+          },
+          {
+            "score": 0.0,
+            "plies": 23,
+            "reason": "goal"
+          },
+          {
+            "score": 0.0,
+            "plies": 23,
+            "reason": "goal"
+          },
+          {
+            "score": 0.0,
+            "plies": 23,
+            "reason": "goal"
+          },
+          {
+            "score": 0.0,
+            "plies": 23,
+            "reason": "goal"
+          },
+          {
+            "score": 0.0,
+            "plies": 25,
+            "reason": "goal"
+          },
+          {
+            "score": 1.0,
+            "plies": 35,
+            "reason": "goal"
+          },
+          {
+            "score": 1.0,
+            "plies": 35,
+            "reason": "goal"
+          },
+          {
+            "score": 0.5,
+            "plies": 42,
+            "reason": "cutoff"
+          },
+          {
+            "score": 0.5,
+            "plies": 56,
+            "reason": "cutoff"
+          },
+          {
+            "score": 1.0,
+            "plies": 69,
+            "reason": "goal"
+          },
+          {
+            "score": 1.0,
+            "plies": 71,
+            "reason": "goal"
+          },
+          {
+            "score": 0.0,
+            "plies": 79,
+            "reason": "goal"
+          }
+        ]
+      }
+    },
+    {
+      "architecture": "residual64",
+      "seed": 2,
+      "mode": "selfplay",
+      "opponent": "small",
+      "result": {
+        "suite": "standard-2",
+        "games": 20,
+        "wins": 1,
+        "cutoffs": 5,
+        "losses": 14,
+        "score": 0.175,
+        "records": [
+          {
+            "score": 0.5,
+            "plies": 6,
+            "reason": "cutoff"
+          },
+          {
+            "score": 0.5,
+            "plies": 11,
+            "reason": "cutoff"
+          },
+          {
+            "score": 0.0,
+            "plies": 12,
+            "reason": "goal"
+          },
+          {
+            "score": 0.0,
+            "plies": 12,
+            "reason": "goal"
+          },
+          {
+            "score": 0.5,
+            "plies": 12,
+            "reason": "cutoff"
+          },
+          {
+            "score": 0.0,
+            "plies": 14,
+            "reason": "goal"
+          },
+          {
+            "score": 0.0,
+            "plies": 14,
+            "reason": "goal"
+          },
+          {
+            "score": 0.0,
+            "plies": 15,
+            "reason": "goal"
+          },
+          {
+            "score": 0.0,
+            "plies": 15,
+            "reason": "goal"
+          },
+          {
+            "score": 0.5,
+            "plies": 16,
+            "reason": "cutoff"
+          },
+          {
+            "score": 0.0,
+            "plies": 17,
+            "reason": "goal"
+          },
+          {
+            "score": 0.0,
+            "plies": 17,
+            "reason": "goal"
+          },
+          {
+            "score": 0.0,
+            "plies": 21,
+            "reason": "goal"
+          },
+          {
+            "score": 0.0,
+            "plies": 29,
+            "reason": "goal"
+          },
+          {
+            "score": 0.0,
+            "plies": 33,
+            "reason": "goal"
+          },
+          {
+            "score": 0.0,
+            "plies": 35,
+            "reason": "goal"
+          },
+          {
+            "score": 0.0,
+            "plies": 47,
+            "reason": "goal"
+          },
+          {
+            "score": 0.0,
+            "plies": 61,
+            "reason": "goal"
+          },
+          {
+            "score": 0.5,
+            "plies": 72,
+            "reason": "cutoff"
+          },
+          {
+            "score": 1.0,
+            "plies": 91,
+            "reason": "goal"
+          }
+        ]
+      }
+    },
+    {
+      "architecture": "residual32",
+      "seed": 2,
+      "mode": "negamax",
+      "opponent": "small",
+      "result": {
+        "suite": "standard-2",
+        "games": 20,
+        "wins": 0,
+        "cutoffs": 20,
+        "losses": 0,
+        "score": 0.5,
+        "records": [
+          {
+            "score": 0.5,
+            "plies": 5,
+            "reason": "cutoff"
+          },
+          {
+            "score": 0.5,
+            "plies": 10,
+            "reason": "cutoff"
+          },
+          {
+            "score": 0.5,
+            "plies": 10,
+            "reason": "cutoff"
+          },
+          {
+            "score": 0.5,
+            "plies": 12,
+            "reason": "cutoff"
+          },
+          {
+            "score": 0.5,
+            "plies": 12,
+            "reason": "cutoff"
+          },
+          {
+            "score": 0.5,
+            "plies": 12,
+            "reason": "cutoff"
+          },
+          {
+            "score": 0.5,
+            "plies": 12,
+            "reason": "cutoff"
+          },
+          {
+            "score": 0.5,
+            "plies": 12,
+            "reason": "cutoff"
+          },
+          {
+            "score": 0.5,
+            "plies": 13,
+            "reason": "cutoff"
+          },
+          {
+            "score": 0.5,
+            "plies": 14,
+            "reason": "cutoff"
+          },
+          {
+            "score": 0.5,
+            "plies": 15,
+            "reason": "cutoff"
+          },
+          {
+            "score": 0.5,
+            "plies": 16,
+            "reason": "cutoff"
+          },
+          {
+            "score": 0.5,
+            "plies": 17,
+            "reason": "cutoff"
+          },
+          {
+            "score": 0.5,
+            "plies": 20,
+            "reason": "cutoff"
+          },
+          {
+            "score": 0.5,
+            "plies": 22,
+            "reason": "cutoff"
+          },
+          {
+            "score": 0.5,
+            "plies": 22,
+            "reason": "cutoff"
+          },
+          {
+            "score": 0.5,
+            "plies": 22,
+            "reason": "cutoff"
+          },
+          {
+            "score": 0.5,
+            "plies": 25,
+            "reason": "cutoff"
+          },
+          {
+            "score": 0.5,
+            "plies": 29,
+            "reason": "cutoff"
+          },
+          {
+            "score": 0.5,
+            "plies": 31,
+            "reason": "cutoff"
+          }
+        ]
+      }
+    },
+    {
+      "architecture": "residual64",
+      "seed": 2,
+      "mode": "negamax",
+      "opponent": "small",
+      "result": {
+        "suite": "standard-2",
+        "games": 20,
+        "wins": 1,
+        "cutoffs": 19,
+        "losses": 0,
+        "score": 0.525,
+        "records": [
+          {
+            "score": 0.5,
+            "plies": 4,
+            "reason": "cutoff"
+          },
+          {
+            "score": 0.5,
+            "plies": 9,
+            "reason": "cutoff"
+          },
+          {
+            "score": 0.5,
+            "plies": 9,
+            "reason": "cutoff"
+          },
+          {
+            "score": 0.5,
+            "plies": 10,
+            "reason": "cutoff"
+          },
+          {
+            "score": 0.5,
+            "plies": 11,
+            "reason": "cutoff"
+          },
+          {
+            "score": 0.5,
+            "plies": 11,
+            "reason": "cutoff"
+          },
+          {
+            "score": 0.5,
+            "plies": 11,
+            "reason": "cutoff"
+          },
+          {
+            "score": 0.5,
+            "plies": 15,
+            "reason": "cutoff"
+          },
+          {
+            "score": 0.5,
+            "plies": 15,
+            "reason": "cutoff"
+          },
+          {
+            "score": 0.5,
+            "plies": 16,
+            "reason": "cutoff"
+          },
+          {
+            "score": 0.5,
+            "plies": 20,
+            "reason": "cutoff"
+          },
+          {
+            "score": 0.5,
+            "plies": 20,
+            "reason": "cutoff"
+          },
+          {
+            "score": 0.5,
+            "plies": 21,
+            "reason": "cutoff"
+          },
+          {
+            "score": 1.0,
+            "plies": 21,
+            "reason": "goal"
+          },
+          {
+            "score": 0.5,
+            "plies": 24,
+            "reason": "cutoff"
+          },
+          {
+            "score": 0.5,
+            "plies": 25,
+            "reason": "cutoff"
+          },
+          {
+            "score": 0.5,
+            "plies": 25,
+            "reason": "cutoff"
+          },
+          {
+            "score": 0.5,
+            "plies": 26,
+            "reason": "cutoff"
+          },
+          {
+            "score": 0.5,
+            "plies": 29,
+            "reason": "cutoff"
+          },
+          {
+            "score": 0.5,
+            "plies": 42,
+            "reason": "cutoff"
+          }
+        ]
+      }
+    }
+  ]
+}

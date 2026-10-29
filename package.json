@@ -12,7 +12,16 @@
     "bench": "tsx bench/bench.ts",
     "selfplay": "tsx selfplay/run.ts",
     "selfplay:report": "tsx selfplay/report.ts",
-    "bench:kernels": "tsx bench/kernels.ts"
+    "bench:kernels": "tsx bench/kernels.ts",
+    "train": ".venv/bin/python training/train.py",
+    "train:bot": ".venv/bin/python training/bot.py",
+    "train:test": ".venv/bin/python -m unittest discover -s training -p 'test_*.py' -v",
+    "train:bench": ".venv/bin/python training/benchmark.py",
+    "train:native:build": "python3 training/native/build.py",
+    "train:native:bench": "tsx training/native-benchmark.ts",
+    "train:direct:build": ".venv/bin/python training/native/build_direct.py",
+    "train:bench:pipeline": ".venv/bin/python training/benchmark_pipeline.py",
+    "dashboard": "npm run build && .venv/bin/python training/dashboard.py"
   },
   "dependencies": {
     "d3-hierarchy": "^3.1.2",

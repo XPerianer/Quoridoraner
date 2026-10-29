@@ -29,3 +29,9 @@ selfplay/results
 # Optional MPS benchmark environment
 .venv/
 __pycache__/
+
+# Neural training checkpoints and replay buffers
+training/runs/
+
+# Optional compiled training engine
+training/native/build/

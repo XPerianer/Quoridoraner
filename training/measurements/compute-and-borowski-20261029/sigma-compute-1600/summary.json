@@ -1,0 +1,24 @@
+[
+  {
+    "id": "sigma-pair0-ours0",
+    "opponent": "sigma",
+    "our_color": 0,
+    "opening": [],
+    "winner": 1,
+    "outcome": "loss",
+    "reason": "goal",
+    "seconds": 99.1840841670055,
+    "plies": 50
+  },
+  {
+    "id": "sigma-pair0-ours1",
+    "opponent": "sigma",
+    "our_color": 1,
+    "opening": [],
+    "winner": 0,
+    "outcome": "loss",
+    "reason": "goal",
+    "seconds": 79.18509091698797,
+    "plies": 47
+  }
+]

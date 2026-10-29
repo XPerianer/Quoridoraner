@@ -1,0 +1,18 @@
+{
+  "requests": 4216,
+  "bridge_seconds": 5.981981577882834,
+  "inference_seconds": 7.44086929691548,
+  "inference_batches": 3148,
+  "inference_positions": 126571,
+  "reused_visits": 66579,
+  "other_bridge_seconds": 0.47758920795604354,
+  "search_bridge_seconds": 4.86899720193469,
+  "encoding_seconds": 0.5688232186439564,
+  "forward_seconds": 5.354257113205676,
+  "policy_seconds": 1.5177889650658472,
+  "negamax_seconds": 0.635395167992101,
+  "training_seconds": 14.398920083003759,
+  "checkpoint_seconds": 0.32813537499896483,
+  "checkpoints": 1,
+  "update_seconds": 0.26955412498500664
+}

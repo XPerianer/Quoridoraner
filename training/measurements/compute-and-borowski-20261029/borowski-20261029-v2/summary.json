@@ -1,0 +1,24 @@
+[
+  {
+    "id": "borowski-pair0-ours0",
+    "opponent": "borowski",
+    "our_color": 0,
+    "opening": [],
+    "winner": 0,
+    "outcome": "win",
+    "reason": "goal",
+    "seconds": 53.445030457980465,
+    "plies": 71
+  },
+  {
+    "id": "borowski-pair0-ours1",
+    "opponent": "borowski",
+    "our_color": 1,
+    "opening": [],
+    "winner": 0,
+    "outcome": "loss",
+    "reason": "goal",
+    "seconds": 48.92293599998811,
+    "plies": 55
+  }
+]

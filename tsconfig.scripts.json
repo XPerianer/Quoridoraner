@@ -16,5 +16,5 @@
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["selfplay", "bench"]
+  "include": ["selfplay", "bench", "training"]
 }
