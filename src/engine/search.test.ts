@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { cellY } from './board'
+import { Board, cellY, H_BASE, mirrorMove, V_BASE } from './board'
 import { DEFAULT_OPTIONS, TsSearcher, WIN } from './search'
 import type { Position, SearchOptions } from './types'
 
@@ -43,4 +43,119 @@ describe('TsSearcher', () => {
     expect(b.bestMove).toBe(a.bestMove)
     expect(b.nodes).toBe(a.nodes)
   })
+
+  it('reuses allocations with a cold cache without changing the fixed opponent', () => {
+    const p = { pawns: [76, 4], wallsLeft: [10, 10], hWalls: [], vWalls: [], turn: 0 } as Position
+    const budget = { ...opts, maxNodes: 2000 }
+    const reused = new TsSearcher()
+    reused.search(p, budget, () => {})
+    reused.clearCache()
+    const actual = reused.search(p, budget, () => {})
+    const expected = new TsSearcher().search(p, budget, () => {})
+    expect(actual.bestMove).toBe(expected.bestMove)
+    expect(actual.score).toBe(expected.score)
+    expect(actual.nodes).toBe(expected.nodes)
+  })
+
+  it('deferred search agrees with eager legality around sealing walls and goals', () => {
+    const positions: Position[] = [
+      { pawns: [72, 4], wallsLeft: [3, 3], hWalls: [56], vWalls: [], turn: 0 },
+      { pawns: [72, 67], wallsLeft: [3, 3], hWalls: [56], vWalls: [], turn: 0 },
+      { pawns: [47, 31], wallsLeft: [3, 4], hWalls: [35, 9], vWalls: [21, 49], turn: 1 },
+    ]
+    let speculativeWalls = 0
+    const deferred = new TsSearcher((p) => {
+      const board = Board.from(p)
+      const generate = board.generate.bind(board)
+      board.generate = (out, likely, defer) => {
+        const n = generate(out, likely, defer)
+        if (defer) speculativeWalls += [...out.subarray(0, n)].filter((m) => m >= H_BASE).length
+        return n
+      }
+      return board
+    })
+    const eager = new TsSearcher((p) => {
+      const board = Board.from(p)
+      const generate = board.generate.bind(board)
+      board.generate = (out, likely) => generate(out, likely, false)
+      return board
+    })
+    for (const position of positions) {
+      const settings = { ...opts, maxDepth: 4, exactRoot: true }
+      deferred.clearCache()
+      eager.clearCache()
+      const actual = deferred.search(position, settings, () => {})
+      const expected = eager.search(position, settings, () => {})
+      expect(actual.iterations.at(-1)?.depth).toBe(4)
+      expect(actual.score).toBe(expected.score)
+      expect(new Map(actual.root.map((r) => [r.move, r.score])))
+        .toEqual(new Map(expected.root.map((r) => [r.move, r.score])))
+      const board = Board.from(position)
+      for (const move of actual.pv) {
+        expect(board.legalMoves()).toContain(move)
+        board.make(move)
+      }
+    }
+    expect(speculativeWalls).toBeGreaterThan(0)
+  })
+
+  it('shares transpositions across horizontal reflection and remaps legal PV moves', () => {
+    const p: Position = { pawns: [47, 31], wallsLeft: [3, 4], hWalls: [35, 9], vWalls: [21, 49], turn: 1 }
+    const reflected: Position = { ...p,
+      pawns: [mirrorMove(p.pawns[0]), mirrorMove(p.pawns[1])],
+      hWalls: p.hWalls.map((i) => mirrorMove(H_BASE + i) - H_BASE),
+      vWalls: p.vWalls.map((i) => mirrorMove(V_BASE + i) - V_BASE),
+    }
+    const searcher = new TsSearcher()
+    const first = searcher.search(p, opts, () => {})
+    const warm = searcher.search(reflected, opts, () => {})
+    const cold = new TsSearcher().search(reflected, opts, () => {})
+    expect(warm.score).toBe(first.score)
+    expect(warm.score).toBe(cold.score)
+    expect(warm.nodes).toBeLessThan(cold.nodes)
+    const board = Board.from(reflected)
+    for (const move of warm.pv) {
+      expect(board.legalMoves()).toContain(move)
+      board.make(move)
+    }
+  })
+
+  it('invalidates cached scores when evaluation or move-generation settings change', () => {
+    const p: Position = { pawns: [47, 31], wallsLeft: [3, 4], hWalls: [35, 9], vWalls: [21, 49], turn: 1 }
+    const searcher = new TsSearcher()
+    searcher.search(p, opts, () => {})
+    for (const changed of [{ ...opts, wallWeight: 70 }, { ...opts, tempo: 13 }, { ...opts, moveGen: 'all' as const }]) {
+      const actual = searcher.search(p, changed, () => {})
+      const expected = new TsSearcher().search(p, changed, () => {})
+      expect(actual.score).toBe(expected.score)
+      expect(actual.bestMove).toBe(expected.bestMove)
+      expect(actual.nodes).toBe(expected.nodes)
+    }
+  })
+
+  it('restores the board when a search is interrupted', () => {
+    let board = Board.initial()
+    const position = board.toPosition()
+    new TsSearcher((p) => { board = Board.from(p); return board }).search(position,
+      { ...opts, maxDepth: 20, maxNodes: 2000 }, () => {})
+    expect(board.toPosition()).toEqual(position)
+    expect(board.checkHash()).toBe(true)
+  })
+
+  it('rejects illegal speculative terminal and immobile positions instead of caching scores', () => {
+    const searcher = new TsSearcher()
+    searcher.search(Board.initial().toPosition(), { ...opts, maxDepth: 1 }, () => {})
+    // Exercise states reachable only inside speculative search, never through the public legal-move API.
+    const internal = searcher as unknown as {
+      board: Board
+      negamax(depth: number, alpha: number, beta: number, ply: number): number | null
+    }
+    internal.board = Board.from({ pawns: [72, 76], wallsLeft: [0, 0], hWalls: [56], vWalls: [57], turn: 0 })
+    expect(internal.board.hasReachedGoal(1)).toBe(true)
+    expect(internal.negamax(2, -32000, 32000, 3)).toBeNull()
+    internal.board = Board.from({ pawns: [63, 64], wallsLeft: [0, 0], hWalls: [48, 56], vWalls: [49], turn: 0 })
+    expect(internal.board.pawnMoves(new Int16Array(8))).toBe(0)
+    expect(internal.negamax(2, -32000, 32000, 3)).toBeNull()
+  })
+
 })

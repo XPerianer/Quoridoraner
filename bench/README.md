@@ -1,5 +1,36 @@
 # Engine performance and algorithm development
 
+## Wall generation and search optimizations
+
+The TypeScript and native training engines implement the techniques described in
+[Solving Quoridor](https://grantslatton.com/solving-quoridor):
+
+- The existing wall-contact shortcut skips reachability checks unless a wall
+  touches obstacles at two or more points. Differential tests verify it against
+  exhaustive path checks.
+- Wall occupancy bitboards filter overlaps and crossings in bulk. TypeScript
+  uses two 32-bit limbs per orientation; C++ uses a 64-bit integer.
+- Interior alpha-beta nodes defer reachability checks until evaluation, terminal
+  detection, or the first invalid child. Illegal branches never receive a score
+  or enter the transposition table. Root moves and displayed replies remain
+  strictly legal; MCTS always uses strict move generation.
+- Transposition entries share horizontally reflected positions, with cached
+  moves mapped back to the current orientation. Both hashes are verified.
+  TypeScript invalidates cached scores when evaluation or move-generation
+  options change.
+- Move ordering combines cached moves, pawn goal distance, cutoff history, and
+  walls cutting an opponent's shortest route (penalizing cuts to our own route).
+  The extra wall analysis runs only above the last search layer to limit overhead.
+
+A before/after check on corpus indices 0, 2, 5, 9 at depth 4, all moves, cold
+tables, and unlimited practical budgets measured **98.12 ms → 71.95 ms** median
+total time across five rounds after two warmups, alternating version order.
+Search allocations were included. Total nodes fell **83,978 → 55,063**, with
+identical scores `[0, 0, 30, 50]`. This is about 27% less elapsed time on this
+small corpus, not a playing-strength measurement or a universal speedup.
+Strict move generation alone can cost more due to the additional maintained
+state; the benefit is measured over complete searches.
+
 The default `Board.distance()` uses nine scalar row bitboards. Walls are loaded
 once, and each synchronous wave expands all rows with integer operations. This
 preserves exact shortest-path lengths, including unreachable goals. Both the web

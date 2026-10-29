@@ -1,4 +1,4 @@
-import { Board, CELLS, H_BASE, MAX_MOVES, MOVE_SPACE, V_BASE, WALL_SLOTS } from './board'
+import { Board, CELLS, H_BASE, MAX_MOVES, mirrorMove, MOVE_SPACE, SIZE, V_BASE, WALL_SIZE, WALL_SLOTS } from './board'
 import type {
   Bound,
   EngineBackend,
@@ -22,6 +22,7 @@ const TT_EXACT = 0
 const TT_LOWER = 1
 const TT_UPPER = 2
 const MAX_REPLIES_REPORTED = 32
+const PATH_STEPS = [-SIZE, 1, SIZE, -1]
 
 export const DEFAULT_OPTIONS: SearchOptions = {
   maxDepth: 12,
@@ -52,8 +53,13 @@ export class TsSearcher implements EngineBackend {
   private readonly moveBuf = Array.from({ length: MAX_PLY }, () => new Int16Array(MAX_MOVES))
   private readonly orderBuf = Array.from({ length: MAX_PLY }, () => new Int32Array(MAX_MOVES))
   private readonly distMap = new Int8Array(CELLS)
+  private readonly opponentDistMap = new Int8Array(CELLS)
+  private readonly pathWalls = [new Int16Array(MOVE_SPACE), new Int16Array(MOVE_SPACE)]
+  private cacheContext = ''
   private readonly history = new Int32Array(MOVE_SPACE)
 
+  // The slot supplies the low 20 hash bits; retain the other 12 for full-key verification.
+  private readonly ttKey1 = new Uint16Array(1 << TT_BITS)
   private readonly ttKey = new Int32Array(1 << TT_BITS)
   private readonly ttDepth = new Int8Array(1 << TT_BITS).fill(-1)
   private readonly ttFlag = new Uint8Array(1 << TT_BITS)
@@ -82,9 +88,21 @@ export class TsSearcher implements EngineBackend {
   private currentIndex = -1
   private onProgress: (s: SearchSnapshot) => void = () => {}
 
+  /** Invalidate cached search results without reallocating the large buffers. */
+  clearCache(): void {
+    this.ttDepth.fill(-1)
+    this.history.fill(0)
+  }
+
   search(position: Position, options: SearchOptions, onProgress: (s: SearchSnapshot) => void): SearchSnapshot {
     this.board = this.boardFactory(position)
     if (this.board.winner() !== -1) throw new Error('search called on a finished game')
+    if (this.board.distance(0) < 0 || this.board.distance(1) < 0) throw new Error('search called on an illegal position')
+    const context = `${options.moveGen}:${options.wallWeight}:${options.tempo}`
+    if (context !== this.cacheContext) {
+      this.clearCache()
+      this.cacheContext = context
+    }
     this.opts = options
     this.onProgress = onProgress
     this.start = performance.now()
@@ -98,7 +116,7 @@ export class TsSearcher implements EngineBackend {
     this.history.fill(0)
     this.pv = []
 
-    const n = this.orderMoves(0, this.probeMove())
+    const n = this.orderMoves(0, this.probeMove(), options.maxDepth)
     if (n === 0) throw new Error('no legal moves')
     this.root = [...this.moveBuf[0].subarray(0, n)].map((move) => ({
       move,
@@ -154,8 +172,14 @@ export class TsSearcher implements EngineBackend {
       b.make(st.move)
       this.heat(st.move)
       const full = this.opts.exactRoot || i === 0
-      const s = -this.negamax(depth - 1, -INF, full ? INF : -alpha, 1)
-      b.unmake(st.move)
+      let child: number | null
+      try {
+        child = this.negamax(depth - 1, -INF, full ? INF : -alpha, 1)
+      } finally {
+        b.unmake(st.move)
+      }
+      if (child === null) throw new Error('legal root move produced an illegal position')
+      const s = -child
       st.score = s
       st.bound = full || s > alpha ? 'exact' : 'upper'
       st.nodes = this.nodes - before
@@ -173,20 +197,25 @@ export class TsSearcher implements EngineBackend {
     }
   }
 
-  private negamax(depth: number, alpha: number, beta: number, ply: number): number {
+  private negamax(depth: number, alpha: number, beta: number, ply: number): number | null {
     const b = this.board
     this.nodes++
     this.plyNodes[ply]++
     if ((this.nodes & 1023) === 0) this.tick()
-    if (b.hasReachedGoal((b.turn ^ 1) as 0 | 1)) return -(WIN - ply)
+    if (b.hasReachedGoal((b.turn ^ 1) as 0 | 1)) {
+      return b.distance(0) < 0 || b.distance(1) < 0 ? null : -(WIN - ply)
+    }
     if (depth === 0 || ply >= MAX_PLY - 1) return this.evaluate()
 
-    const idx = b.hash1 & TT_MASK
+    const mirrored = this.isMirrored()
+    const hash1 = mirrored ? b.mirrorHash1 : b.hash1
+    const hash2 = mirrored ? b.mirrorHash2 : b.hash2
+    const idx = hash1 & TT_MASK
     let ttMove = -1
     this.ttProbes++
-    if (this.ttKey[idx] === b.hash2 && this.ttDepth[idx] >= 0) {
+    if (this.ttKey1[idx] === (hash1 >>> TT_BITS) && this.ttKey[idx] === hash2 && this.ttDepth[idx] >= 0) {
       this.ttHits++
-      ttMove = this.ttMove[idx]
+      ttMove = mirrored ? mirrorMove(this.ttMove[idx]) : this.ttMove[idx]
       if (this.ttDepth[idx] >= depth && ply > 1) {
         const s = fromTt(this.ttScore[idx], ply)
         const flag = this.ttFlag[idx]
@@ -194,21 +223,36 @@ export class TsSearcher implements EngineBackend {
       }
     }
 
-    const n = this.orderMoves(ply, ttMove)
+    const n = this.orderMoves(ply, ttMove, depth)
     if (n === 0) return this.evaluate()
     const moves = this.moveBuf[ply]
     const alpha0 = alpha
     const record = ply === 1
     let best = -INF
     let bestMove = moves[0]
+    let parentLegal = false
     let i = 0
     for (; i < n; i++) {
       const m = moves[i]
       const before = this.nodes
       b.make(m)
       this.heat(m)
-      const s = -this.negamax(depth - 1, -beta, -alpha, ply + 1)
-      b.unmake(m)
+      let child: number | null
+      try {
+        child = this.negamax(depth - 1, -beta, -alpha, ply + 1)
+      } finally {
+        b.unmake(m)
+      }
+      if (child === null) {
+        // Disconnection is monotonic: no descendant can repair an illegal parent.
+        if (!parentLegal) {
+          if (b.distance(0) < 0 || b.distance(1) < 0) return null
+          parentLegal = true
+        }
+        continue
+      }
+      parentLegal = true
+      const s = -child
       if (record) {
         const bound: Bound = s <= alpha ? 'lower' : s >= beta ? 'upper' : 'exact'
         this.replies.push({ move: m, score: -s, bound, nodes: this.nodes - before })
@@ -230,30 +274,43 @@ export class TsSearcher implements EngineBackend {
       this.repliesSearched = Math.min(i, n)
     }
 
-    this.ttKey[idx] = b.hash2
+    if (best === -INF) return this.evaluate()
+    this.ttKey1[idx] = hash1 >>> TT_BITS
+    this.ttKey[idx] = hash2
     this.ttDepth[idx] = depth
     this.ttFlag[idx] = best <= alpha0 ? TT_UPPER : best >= beta ? TT_LOWER : TT_EXACT
     this.ttScore[idx] = toTt(best, ply)
-    this.ttMove[idx] = bestMove
+    this.ttMove[idx] = mirrored ? mirrorMove(bestMove) : bestMove
     return best
   }
 
-  private evaluate(): number {
+  private evaluate(): number | null {
     const b = this.board
     const me = b.turn
     const opp = (me ^ 1) as 0 | 1
-    return STEP * (b.distance(opp) - b.distance(me)) + this.opts.wallWeight * (b.wallsLeft[me] - b.wallsLeft[opp]) + this.opts.tempo
+    const mine = b.distance(me)
+    const theirs = b.distance(opp)
+    if (mine < 0 || theirs < 0) return null
+    return STEP * (theirs - mine) + this.opts.wallWeight * (b.wallsLeft[me] - b.wallsLeft[opp]) + this.opts.tempo
   }
 
-  private orderMoves(ply: number, ttMove: Move): number {
+  private orderMoves(ply: number, ttMove: Move, depth: number): number {
     const b = this.board
     const moves = this.moveBuf[ply]
     const keys = this.orderBuf[ply]
-    const n = b.generate(moves, this.opts.moveGen === 'likely')
+    // Root and displayed replies remain strictly legal; deeper nodes defer reachability.
+    const n = b.generate(moves, this.opts.moveGen === 'likely', ply > 1)
     b.distanceMap(b.turn, this.distMap)
+    // Route analysis pays for itself where ordering can prune a deeper subtree.
+    const orderWalls = depth > 1 && b.wallsLeft[b.turn] > 0
+    if (orderWalls) {
+      b.distanceMap((b.turn ^ 1) as 0 | 1, this.opponentDistMap)
+      this.markPathWalls(b.pawn[b.turn], this.distMap, this.pathWalls[0])
+      this.markPathWalls(b.pawn[b.turn ^ 1], this.opponentDistMap, this.pathWalls[1])
+    }
     for (let i = 0; i < n; i++) {
       const m = moves[i]
-      keys[i] = m === ttMove ? 1 << 30 : m < H_BASE ? (1 << 29) - this.distMap[m] : this.history[m]
+      keys[i] = m === ttMove ? 1 << 30 : m < H_BASE ? (1 << 29) - this.distMap[m] : this.history[m] + (orderWalls ? 64 * (this.pathWalls[1][m] - this.pathWalls[0][m]) : 0)
     }
     for (let i = 1; i < n; i++) {
       const m = moves[i]
@@ -270,9 +327,49 @@ export class TsSearcher implements EngineBackend {
     return n
   }
 
+  private isMirrored(): boolean {
+    const b = this.board
+    return (b.mirrorHash1 >>> 0) < (b.hash1 >>> 0) ||
+      (b.mirrorHash1 === b.hash1 && (b.mirrorHash2 >>> 0) < (b.hash2 >>> 0))
+  }
+
   private probeMove(): Move {
-    const idx = this.board.hash1 & TT_MASK
-    return this.ttKey[idx] === this.board.hash2 && this.ttDepth[idx] >= 0 ? this.ttMove[idx] : -1
+    const b = this.board
+    const mirrored = this.isMirrored()
+    const hash1 = mirrored ? b.mirrorHash1 : b.hash1
+    const hash2 = mirrored ? b.mirrorHash2 : b.hash2
+    const idx = hash1 & TT_MASK
+    if (this.ttKey1[idx] !== (hash1 >>> TT_BITS) || this.ttKey[idx] !== hash2 || this.ttDepth[idx] < 0) return -1
+    return mirrored ? mirrorMove(this.ttMove[idx]) : this.ttMove[idx]
+  }
+
+  /** Mark walls cutting one shortest route, without searching separately for each wall. */
+  private markPathWalls(start: number, distances: Int8Array, out: Int16Array): void {
+    out.fill(0)
+    let cell = start
+    while (distances[cell] > 0) {
+      const x = cell % SIZE
+      const y = (cell / SIZE) | 0
+      let next = -1
+      for (let d = 0; d < 4; d++) {
+        if (!this.board.canStep(x, y, d)) continue
+        const candidate = cell + PATH_STEPS[d]
+        if (distances[candidate] === distances[cell] - 1) { next = candidate; break }
+      }
+      if (next < 0) break
+      const nx = next % SIZE
+      const ny = (next / SIZE) | 0
+      if (x === nx) {
+        const row = Math.min(y, ny)
+        if (x < WALL_SIZE) out[H_BASE + row * WALL_SIZE + x]++
+        if (x > 0) out[H_BASE + row * WALL_SIZE + x - 1]++
+      } else {
+        const col = Math.min(x, nx)
+        if (y < WALL_SIZE) out[V_BASE + y * WALL_SIZE + col]++
+        if (y > 0) out[V_BASE + (y - 1) * WALL_SIZE + col]++
+      }
+      cell = next
+    }
   }
 
   private extractPv(depth: number): Move[] {

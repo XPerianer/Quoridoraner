@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest'
-import { Board, MAX_MOVES, moveToString, wallMove } from './board'
+import { describe, expect, it, vi } from 'vitest'
+import { Board, H_BASE, V_BASE, MAX_MOVES, mirrorMove, moveToString, wallMove } from './board'
 import type { Position } from './types'
 
 const pos = (p: Partial<Position>): Position => ({
@@ -81,6 +81,82 @@ describe('Board', () => {
     expect(b.distance(0)).toBe(map[b.pawn[0]])
     b.distanceMap(1, map)
     expect(b.distance(1)).toBe(map[b.pawn[1]])
+  })
+
+  it('skips flood fills for walls with fewer than two obstacle contacts', () => {
+    const b = Board.from(pos({ hWalls: [27] }))
+    const distance = vi.spyOn(b, 'distance')
+    expect(b.wallLegal(false, 1, 1)).toBe(true) // floating
+    expect(b.wallLegal(false, 0, 1)).toBe(true) // board edge only
+    expect(b.wallLegal(false, 5, 3)).toBe(true) // existing wall endpoint only
+    expect(distance).not.toHaveBeenCalled()
+  })
+
+  it('deferred candidates include sealing walls but still reject crossings and overlaps', () => {
+    const b = Board.from(pos({ pawns: [72, 4], hWalls: [56], turn: 1 }))
+    const out = new Int16Array(MAX_MOVES)
+    const candidates = [...out.subarray(0, b.generate(out, false, true))]
+    expect(candidates).toContain(wallMove(true, 1, 7))
+    expect(b.legalMoves()).not.toContain(wallMove(true, 1, 7))
+    expect(candidates).not.toContain(wallMove(true, 0, 7))
+    expect(candidates).not.toContain(wallMove(false, 1, 7))
+  })
+
+  it('bitboard candidates and contact shortcut match exhaustive flood-fill legality', () => {
+    const b = Board.initial()
+    const out = new Int16Array(MAX_MOVES)
+    let seed = 941
+    for (let step = 0; step < 65 && b.winner() === -1; step++) {
+      const fits: number[] = []
+      const legal: number[] = []
+      for (let i = 0; i < 64 && b.wallsLeft[b.turn] > 0; i++) {
+        for (const vertical of [false, true]) {
+          const x = i % 8
+          const y = i >>> 3
+          const occupied = b.hWall[i] || b.vWall[i]
+          const overlap = vertical
+            ? (y > 0 && b.vWall[i - 8]) || (y < 7 && b.vWall[i + 8])
+            : (x > 0 && b.hWall[i - 1]) || (x < 7 && b.hWall[i + 1])
+          if (occupied || overlap) continue
+          const m = (vertical ? V_BASE : H_BASE) + i
+          fits.push(m)
+          b.make(m)
+          if (b.distance(0) >= 0 && b.distance(1) >= 0) legal.push(m)
+          b.unmake(m)
+        }
+      }
+      const candidates = [...out.subarray(0, b.generate(out, false, true))].filter((m) => m >= H_BASE)
+      expect(candidates).toEqual(fits)
+      const moves = b.legalMoves()
+      expect(moves.filter((m) => m >= H_BASE)).toEqual(legal)
+      for (let i = 0; i < 64; i++) {
+        expect((b.hBits[i >>> 5] >>> (i & 31)) & 1).toBe(b.hWall[i])
+        expect((b.vBits[i >>> 5] >>> (i & 31)) & 1).toBe(b.vWall[i])
+      }
+      seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0
+      b.make(moves[seed % moves.length])
+    }
+  })
+
+  it('maintains reflected hashes and moves through make/unmake', () => {
+    const b = Board.from(pos({ pawns: [74, 5], hWalls: [1, 35], vWalls: [22, 57], wallsLeft: [8, 8] }))
+    const p = b.toPosition()
+    const reflected = Board.from({ ...p, pawns: [mirrorMove(p.pawns[0]), mirrorMove(p.pawns[1])],
+      hWalls: p.hWalls.map((i) => mirrorMove(H_BASE + i) - H_BASE),
+      vWalls: p.vWalls.map((i) => mirrorMove(V_BASE + i) - V_BASE) })
+    const initial = [b.hash1, b.hash2, b.mirrorHash1, b.mirrorHash2]
+    expect([b.mirrorHash1, b.mirrorHash2]).toEqual([reflected.hash1, reflected.hash2])
+    for (const m of b.legalMoves()) {
+      expect(mirrorMove(mirrorMove(m))).toBe(m)
+      b.make(m)
+      reflected.make(mirrorMove(m))
+      expect(b.checkHash()).toBe(true)
+      expect([b.mirrorHash1, b.mirrorHash2]).toEqual([reflected.hash1, reflected.hash2])
+      b.unmake(m)
+      reflected.unmake(mirrorMove(m))
+      expect([b.hash1, b.hash2, b.mirrorHash1, b.mirrorHash2]).toEqual(initial)
+    }
+    expect(mirrorMove(-1)).toBe(-1)
   })
 
   it('formats moves', () => {

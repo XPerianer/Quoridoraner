@@ -47,6 +47,29 @@ export const wallMove = (vertical: boolean, x: number, y: number): Move =>
 export const cellX = (c: number) => c % SIZE
 export const cellY = (c: number) => (c / SIZE) | 0
 
+/** Reflect a move across the vertical centerline; negative sentinels remain unchanged. */
+export function mirrorMove(m: Move): Move {
+  if (m < 0) return m
+  if (m < H_BASE) return m + SIZE - 1 - 2 * cellX(m)
+  const i = wallIndex(m)
+  return m + WALL_SIZE - 1 - 2 * (i % WALL_SIZE)
+}
+
+function mirroredTable(z: Int32Array): Int32Array {
+  const result = z.slice()
+  for (let p = 0; p < 2; p++) {
+    for (let c = 0; c < CELLS; c++) result[p * CELLS + c] = z[p * CELLS + mirrorMove(c)]
+  }
+  for (let i = 0; i < WALL_SLOTS; i++) {
+    result[ZOBRIST_H + i] = z[ZOBRIST_H + mirrorMove(H_BASE + i) - H_BASE]
+    result[ZOBRIST_V + i] = z[ZOBRIST_V + mirrorMove(V_BASE + i) - V_BASE]
+  }
+  return result
+}
+
+const M1 = mirroredTable(Z1)
+const M2 = mirroredTable(Z2)
+
 export function moveToString(m: Move): string {
   if (isPawnMove(m)) return String.fromCharCode(97 + cellX(m)) + (SIZE - cellY(m))
   const i = wallIndex(m)
@@ -60,6 +83,9 @@ export class Board {
   readonly wallsLeft = new Int8Array(2)
   readonly hWall = new Uint8Array(WALL_SLOTS)
   readonly vWall = new Uint8Array(WALL_SLOTS)
+  /** 64 wall slots per orientation, split into native 32-bit limbs for JS bit operations. */
+  readonly hBits = new Uint32Array(2)
+  readonly vBits = new Uint32Array(2)
   /** bit x of row y: stepping (x,y) -> (x,y+1) is blocked */
   readonly blockDown = new Uint16Array(SIZE)
   /** bit x of row y: stepping (x,y) -> (x+1,y) is blocked */
@@ -67,6 +93,8 @@ export class Board {
   turn: Player = 0
   hash1 = 0
   hash2 = 0
+  mirrorHash1 = 0
+  mirrorHash2 = 0
 
   private readonly wallTouch = new Uint8Array(VERTICES)
   private readonly fromStack = new Int8Array(1024)
@@ -97,6 +125,8 @@ export class Board {
     for (const i of p.vWalls) b.setWall(true, i)
     b.hash1 = b.computeHash(Z1)
     b.hash2 = b.computeHash(Z2)
+    b.mirrorHash1 = b.computeHash(M1)
+    b.mirrorHash2 = b.computeHash(M2)
     return b
   }
 
@@ -192,6 +222,11 @@ export class Board {
 
   wallLegal(vertical: boolean, x: number, y: number): boolean {
     if (this.wallsLeft[this.turn] <= 0 || !this.wallFits(vertical, x, y)) return false
+    return this.wallReachable(vertical, x, y)
+  }
+
+  /** Reachability only: caller has already rejected overlap and crossing. */
+  private wallReachable(vertical: boolean, x: number, y: number): boolean {
     if (!this.mayDisconnect(vertical, x, y)) return true
     const i = y * WALL_SIZE + x
     this.setWall(vertical, i)
@@ -201,6 +236,8 @@ export class Board {
   }
 
   private setWall(vertical: boolean, i: number): void {
+    const bits = vertical ? this.vBits : this.hBits
+    bits[i >>> 5] |= 1 << (i & 31)
     const x = i % WALL_SIZE
     const y = (i / WALL_SIZE) | 0
     const stride = SIZE + 1
@@ -223,6 +260,8 @@ export class Board {
   }
 
   private clearWall(vertical: boolean, i: number): void {
+    const bits = vertical ? this.vBits : this.hBits
+    bits[i >>> 5] &= ~(1 << (i & 31))
     const x = i % WALL_SIZE
     const y = (i / WALL_SIZE) | 0
     const stride = SIZE + 1
@@ -310,24 +349,29 @@ export class Board {
     }
   }
 
-  generate(out: Int16Array, likelyOnly: boolean): number {
+  /** Deferred mode only omits reachability checks; overlap, crossing and inventory checks remain strict. */
+  generate(out: Int16Array, likelyOnly: boolean, deferLegality = false): number {
     let n = this.pawnMoves(out)
     if (this.wallsLeft[this.turn] <= 0) return n
-    if (!likelyOnly) {
-      for (let i = 0; i < WALL_SLOTS; i++) {
+    const cand = likelyOnly ? this.markLikelyWalls() : null
+    for (let limb = 0; limb < 2; limb++) {
+      const h = this.hBits[limb]
+      const v = this.vBits[limb]
+      // Horizontal shifts cannot cross an 8-slot row. Vertical shifts carry between limbs.
+      const hs = ~(h | v | ((h << 1) & 0xfefefefe) | ((h >>> 1) & 0x7f7f7f7f))
+      const above = (v << 8) | (limb === 1 ? this.vBits[0] >>> 24 : 0)
+      const below = (v >>> 8) | (limb === 0 ? this.vBits[1] << 24 : 0)
+      const vs = ~(h | v | above | below)
+      let available = hs | vs
+      while (available !== 0) {
+        const bit = available & -available
+        const i = limb * 32 + 31 - Math.clz32(bit)
         const x = i % WALL_SIZE
-        const y = (i / WALL_SIZE) | 0
-        if (this.wallLegal(false, x, y)) out[n++] = H_BASE + i
-        if (this.wallLegal(true, x, y)) out[n++] = V_BASE + i
+        const y = i >>> 3
+        if ((hs & bit) && (!cand || cand[i]) && (deferLegality || this.wallReachable(false, x, y))) out[n++] = H_BASE + i
+        if ((vs & bit) && (!cand || cand[WALL_SLOTS + i]) && (deferLegality || this.wallReachable(true, x, y))) out[n++] = V_BASE + i
+        available &= available - 1
       }
-      return n
-    }
-    const cand = this.markLikelyWalls()
-    for (let i = 0; i < WALL_SLOTS; i++) {
-      const x = i % WALL_SIZE
-      const y = (i / WALL_SIZE) | 0
-      if (cand[i] && this.wallLegal(false, x, y)) out[n++] = H_BASE + i
-      if (cand[WALL_SLOTS + i] && this.wallLegal(true, x, y)) out[n++] = V_BASE + i
     }
     return n
   }
@@ -367,7 +411,9 @@ export class Board {
       const from = this.pawn[t]
       this.fromStack[this.sp++] = from
       this.hash1 ^= Z1[ZOBRIST_PAWN + t * CELLS + from] ^ Z1[ZOBRIST_PAWN + t * CELLS + m]
+      this.mirrorHash1 ^= M1[ZOBRIST_PAWN + t * CELLS + from] ^ M1[ZOBRIST_PAWN + t * CELLS + m]
       this.hash2 ^= Z2[ZOBRIST_PAWN + t * CELLS + from] ^ Z2[ZOBRIST_PAWN + t * CELLS + m]
+      this.mirrorHash2 ^= M2[ZOBRIST_PAWN + t * CELLS + from] ^ M2[ZOBRIST_PAWN + t * CELLS + m]
       this.pawn[t] = m
     } else {
       const vertical = m >= V_BASE
@@ -375,24 +421,32 @@ export class Board {
       const zw = (vertical ? ZOBRIST_V : ZOBRIST_H) + i
       const zl = ZOBRIST_WALLS_LEFT + t * (START_WALLS + 1) + this.wallsLeft[t]
       this.hash1 ^= Z1[zw] ^ Z1[zl] ^ Z1[zl - 1]
+      this.mirrorHash1 ^= M1[zw] ^ M1[zl] ^ M1[zl - 1]
       this.hash2 ^= Z2[zw] ^ Z2[zl] ^ Z2[zl - 1]
+      this.mirrorHash2 ^= M2[zw] ^ M2[zl] ^ M2[zl - 1]
       this.setWall(vertical, i)
       this.wallsLeft[t]--
     }
     this.turn = (t ^ 1) as Player
     this.hash1 ^= Z1[ZOBRIST_TURN]
+    this.mirrorHash1 ^= M1[ZOBRIST_TURN]
     this.hash2 ^= Z2[ZOBRIST_TURN]
+    this.mirrorHash2 ^= M2[ZOBRIST_TURN]
   }
 
   unmake(m: Move): void {
     const t = (this.turn ^ 1) as Player
     this.turn = t
     this.hash1 ^= Z1[ZOBRIST_TURN]
+    this.mirrorHash1 ^= M1[ZOBRIST_TURN]
     this.hash2 ^= Z2[ZOBRIST_TURN]
+    this.mirrorHash2 ^= M2[ZOBRIST_TURN]
     if (m < H_BASE) {
       const from = this.fromStack[--this.sp]
       this.hash1 ^= Z1[ZOBRIST_PAWN + t * CELLS + from] ^ Z1[ZOBRIST_PAWN + t * CELLS + m]
+      this.mirrorHash1 ^= M1[ZOBRIST_PAWN + t * CELLS + from] ^ M1[ZOBRIST_PAWN + t * CELLS + m]
       this.hash2 ^= Z2[ZOBRIST_PAWN + t * CELLS + from] ^ Z2[ZOBRIST_PAWN + t * CELLS + m]
+      this.mirrorHash2 ^= M2[ZOBRIST_PAWN + t * CELLS + from] ^ M2[ZOBRIST_PAWN + t * CELLS + m]
       this.pawn[t] = from
     } else {
       const vertical = m >= V_BASE
@@ -402,12 +456,15 @@ export class Board {
       const zw = (vertical ? ZOBRIST_V : ZOBRIST_H) + i
       const zl = ZOBRIST_WALLS_LEFT + t * (START_WALLS + 1) + this.wallsLeft[t]
       this.hash1 ^= Z1[zw] ^ Z1[zl] ^ Z1[zl - 1]
+      this.mirrorHash1 ^= M1[zw] ^ M1[zl] ^ M1[zl - 1]
       this.hash2 ^= Z2[zw] ^ Z2[zl] ^ Z2[zl - 1]
+      this.mirrorHash2 ^= M2[zw] ^ M2[zl] ^ M2[zl - 1]
     }
   }
 
   checkHash(): boolean {
     return this.hash1 === this.computeHash(Z1) && this.hash2 === this.computeHash(Z2)
+      && this.mirrorHash1 === this.computeHash(M1) && this.mirrorHash2 === this.computeHash(M2)
   }
 }
 
