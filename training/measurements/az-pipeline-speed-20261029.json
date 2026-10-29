@@ -1,0 +1,402 @@
+{
+  "args": {
+    "out": "training/measurements/az-pipeline-speed-20261029.json",
+    "device": "cpu",
+    "batches": [
+      64,
+      256
+    ],
+    "simulations": 64,
+    "repeats": 3,
+    "channels": 32,
+    "blocks": 2
+  },
+  "machine": "macOS-26.6.2-arm64-arm-64bit-Mach-O",
+  "torch": "2.14.1",
+  "results": [
+    {
+      "batch": 64,
+      "workload": "shared",
+      "cached": false,
+      "repeat": 0,
+      "seconds": 0.7034695830079727,
+      "searches_per_second": 90.97763648335975,
+      "stats": {
+        "cache_hits": 0,
+        "unique_evaluations": 4163,
+        "waves": 68,
+        "leaves": 4163,
+        "forward_seconds": 0.6676239992375486,
+        "search_seconds": 0.03722583275521174
+      }
+    },
+    {
+      "batch": 64,
+      "workload": "shared",
+      "cached": true,
+      "repeat": 0,
+      "seconds": 0.10011441598180681,
+      "searches_per_second": 639.2685745840073,
+      "stats": {
+        "cache_hits": 4111,
+        "unique_evaluations": 52,
+        "waves": 68,
+        "leaves": 4163,
+        "forward_seconds": 0.06923050305340439,
+        "search_seconds": 0.03183629282284528
+      }
+    },
+    {
+      "batch": 64,
+      "workload": "shared",
+      "cached": true,
+      "repeat": 1,
+      "seconds": 0.09521545795723796,
+      "searches_per_second": 672.1597666288905,
+      "stats": {
+        "cache_hits": 4111,
+        "unique_evaluations": 52,
+        "waves": 68,
+        "leaves": 4163,
+        "forward_seconds": 0.06438837217865512,
+        "search_seconds": 0.03150870662648231
+      }
+    },
+    {
+      "batch": 64,
+      "workload": "shared",
+      "cached": false,
+      "repeat": 1,
+      "seconds": 0.6782144579919986,
+      "searches_per_second": 94.36543153250656,
+      "stats": {
+        "cache_hits": 0,
+        "unique_evaluations": 4163,
+        "waves": 68,
+        "leaves": 4163,
+        "forward_seconds": 0.6431499149184674,
+        "search_seconds": 0.035735537006985396
+      }
+    },
+    {
+      "batch": 64,
+      "workload": "shared",
+      "cached": false,
+      "repeat": 2,
+      "seconds": 0.6781339580193162,
+      "searches_per_second": 94.37663347066452,
+      "stats": {
+        "cache_hits": 0,
+        "unique_evaluations": 4163,
+        "waves": 68,
+        "leaves": 4163,
+        "forward_seconds": 0.643835496797692,
+        "search_seconds": 0.03498808533186093
+      }
+    },
+    {
+      "batch": 64,
+      "workload": "shared",
+      "cached": true,
+      "repeat": 2,
+      "seconds": 0.0951970829628408,
+      "searches_per_second": 672.2895072843959,
+      "stats": {
+        "cache_hits": 4111,
+        "unique_evaluations": 52,
+        "waves": 68,
+        "leaves": 4163,
+        "forward_seconds": 0.06510361976688728,
+        "search_seconds": 0.030873290146701038
+      }
+    },
+    {
+      "batch": 64,
+      "workload": "varied",
+      "cached": false,
+      "repeat": 0,
+      "seconds": 0.6913388329558074,
+      "searches_per_second": 92.57399837698844,
+      "stats": {
+        "cache_hits": 0,
+        "unique_evaluations": 4163,
+        "waves": 68,
+        "leaves": 4163,
+        "forward_seconds": 0.6519844651920721,
+        "search_seconds": 0.039838205848354846
+      }
+    },
+    {
+      "batch": 64,
+      "workload": "varied",
+      "cached": true,
+      "repeat": 0,
+      "seconds": 0.4635298339999281,
+      "searches_per_second": 138.07094021915734,
+      "stats": {
+        "cache_hits": 1468,
+        "unique_evaluations": 2695,
+        "waves": 68,
+        "leaves": 4163,
+        "forward_seconds": 0.42686362203676254,
+        "search_seconds": 0.037434742553159595
+      }
+    },
+    {
+      "batch": 64,
+      "workload": "varied",
+      "cached": true,
+      "repeat": 1,
+      "seconds": 0.4625920829712413,
+      "searches_per_second": 138.35083296049143,
+      "stats": {
+        "cache_hits": 1468,
+        "unique_evaluations": 2695,
+        "waves": 68,
+        "leaves": 4163,
+        "forward_seconds": 0.4261446343152784,
+        "search_seconds": 0.03728737123310566
+      }
+    },
+    {
+      "batch": 64,
+      "workload": "varied",
+      "cached": false,
+      "repeat": 1,
+      "seconds": 0.6858762089977972,
+      "searches_per_second": 93.311298978451,
+      "stats": {
+        "cache_hits": 0,
+        "unique_evaluations": 4163,
+        "waves": 68,
+        "leaves": 4163,
+        "forward_seconds": 0.6472567899618298,
+        "search_seconds": 0.03929033305030316
+      }
+    },
+    {
+      "batch": 64,
+      "workload": "varied",
+      "cached": false,
+      "repeat": 2,
+      "seconds": 0.695314624987077,
+      "searches_per_second": 92.04466251689945,
+      "stats": {
+        "cache_hits": 0,
+        "unique_evaluations": 4163,
+        "waves": 68,
+        "leaves": 4163,
+        "forward_seconds": 0.6567367493407801,
+        "search_seconds": 0.03909412294160575
+      }
+    },
+    {
+      "batch": 64,
+      "workload": "varied",
+      "cached": true,
+      "repeat": 2,
+      "seconds": 0.4628019580268301,
+      "searches_per_second": 138.28809254149638,
+      "stats": {
+        "cache_hits": 1468,
+        "unique_evaluations": 2695,
+        "waves": 68,
+        "leaves": 4163,
+        "forward_seconds": 0.42681446071946993,
+        "search_seconds": 0.036802156653720886
+      }
+    },
+    {
+      "batch": 256,
+      "workload": "shared",
+      "cached": false,
+      "repeat": 0,
+      "seconds": 2.7352089579799213,
+      "searches_per_second": 93.59431178123512,
+      "stats": {
+        "cache_hits": 0,
+        "unique_evaluations": 16643,
+        "waves": 68,
+        "leaves": 16643,
+        "forward_seconds": 2.6002520413021557,
+        "search_seconds": 0.13377262774156407
+      }
+    },
+    {
+      "batch": 256,
+      "workload": "shared",
+      "cached": true,
+      "repeat": 0,
+      "seconds": 0.32477449998259544,
+      "searches_per_second": 788.239224488742,
+      "stats": {
+        "cache_hits": 16591,
+        "unique_evaluations": 52,
+        "waves": 68,
+        "leaves": 16643,
+        "forward_seconds": 0.19713095691986382,
+        "search_seconds": 0.12681870470987633
+      }
+    },
+    {
+      "batch": 256,
+      "workload": "shared",
+      "cached": true,
+      "repeat": 1,
+      "seconds": 0.3312161669600755,
+      "searches_per_second": 772.9091316694635,
+      "stats": {
+        "cache_hits": 16591,
+        "unique_evaluations": 52,
+        "waves": 68,
+        "leaves": 16643,
+        "forward_seconds": 0.2017413742141798,
+        "search_seconds": 0.12857450096635148
+      }
+    },
+    {
+      "batch": 256,
+      "workload": "shared",
+      "cached": false,
+      "repeat": 1,
+      "seconds": 2.7800151669653133,
+      "searches_per_second": 92.08582853864486,
+      "stats": {
+        "cache_hits": 0,
+        "unique_evaluations": 16643,
+        "waves": 68,
+        "leaves": 16643,
+        "forward_seconds": 2.6418077082489617,
+        "search_seconds": 0.13700066437013447
+      }
+    },
+    {
+      "batch": 256,
+      "workload": "shared",
+      "cached": false,
+      "repeat": 2,
+      "seconds": 2.7432653330033645,
+      "searches_per_second": 93.31944559651023,
+      "stats": {
+        "cache_hits": 0,
+        "unique_evaluations": 16643,
+        "waves": 68,
+        "leaves": 16643,
+        "forward_seconds": 2.6096307486877777,
+        "search_seconds": 0.13252871163422242
+      }
+    },
+    {
+      "batch": 256,
+      "workload": "shared",
+      "cached": true,
+      "repeat": 2,
+      "seconds": 0.3285932500148192,
+      "searches_per_second": 779.0786937603091,
+      "stats": {
+        "cache_hits": 16591,
+        "unique_evaluations": 52,
+        "waves": 68,
+        "leaves": 16643,
+        "forward_seconds": 0.19969783147098497,
+        "search_seconds": 0.12812409084290266
+      }
+    },
+    {
+      "batch": 256,
+      "workload": "varied",
+      "cached": false,
+      "repeat": 0,
+      "seconds": 2.9498586249537766,
+      "searches_per_second": 86.78382002256512,
+      "stats": {
+        "cache_hits": 0,
+        "unique_evaluations": 16639,
+        "waves": 68,
+        "leaves": 16639,
+        "forward_seconds": 2.7873939178534783,
+        "search_seconds": 0.16135575086809695
+      }
+    },
+    {
+      "batch": 256,
+      "workload": "varied",
+      "cached": true,
+      "repeat": 0,
+      "seconds": 1.7742285830317996,
+      "searches_per_second": 144.28805986348587,
+      "stats": {
+        "cache_hits": 6842,
+        "unique_evaluations": 9797,
+        "waves": 68,
+        "leaves": 16639,
+        "forward_seconds": 1.6080938780214638,
+        "search_seconds": 0.16761175566352904
+      }
+    },
+    {
+      "batch": 256,
+      "workload": "varied",
+      "cached": true,
+      "repeat": 1,
+      "seconds": 1.8364302499685436,
+      "searches_per_second": 139.4008838638903,
+      "stats": {
+        "cache_hits": 6842,
+        "unique_evaluations": 9797,
+        "waves": 68,
+        "leaves": 16639,
+        "forward_seconds": 1.6694797562086023,
+        "search_seconds": 0.16610416362527758
+      }
+    },
+    {
+      "batch": 256,
+      "workload": "varied",
+      "cached": false,
+      "repeat": 1,
+      "seconds": 3.05960416700691,
+      "searches_per_second": 83.67095415824156,
+      "stats": {
+        "cache_hits": 0,
+        "unique_evaluations": 16639,
+        "waves": 68,
+        "leaves": 16639,
+        "forward_seconds": 2.8765226701507345,
+        "search_seconds": 0.18195066030602902
+      }
+    },
+    {
+      "batch": 256,
+      "workload": "varied",
+      "cached": false,
+      "repeat": 2,
+      "seconds": 3.351105000008829,
+      "searches_per_second": 76.39271225441325,
+      "stats": {
+        "cache_hits": 0,
+        "unique_evaluations": 16639,
+        "waves": 68,
+        "leaves": 16639,
+        "forward_seconds": 3.136251631192863,
+        "search_seconds": 0.21351779531687498
+      }
+    },
+    {
+      "batch": 256,
+      "workload": "varied",
+      "cached": true,
+      "repeat": 2,
+      "seconds": 2.122749667032622,
+      "searches_per_second": 120.5982994489693,
+      "stats": {
+        "cache_hits": 6842,
+        "unique_evaluations": 9797,
+        "waves": 68,
+        "leaves": 16639,
+        "forward_seconds": 1.9102630829438567,
+        "search_seconds": 0.21191338018979877
+      }
+    }
+  ]
+}
