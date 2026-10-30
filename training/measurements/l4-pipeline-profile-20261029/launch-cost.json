@@ -1,0 +1,42 @@
+[
+ {
+  "variant": "compile dynamic (current)",
+  "rows": 352,
+  "enqueue_ms": 3.0163819966886267,
+  "wall_ms_per_batch": 4.956249036664909,
+  "evals_per_second": 71021.45138309333
+ },
+ {
+  "variant": "eager fused bf16 channels_last",
+  "rows": 352,
+  "enqueue_ms": 3.904860496689556,
+  "wall_ms_per_batch": 6.1243180033367635,
+  "evals_per_second": 57475.78747677977
+ },
+ {
+  "variant": "CUDA graphs of eager",
+  "rows": 352,
+  "enqueue_ms": 0.522683290024967,
+  "wall_ms_per_batch": 6.058561150002788,
+  "evals_per_second": 58099.60340168193
+ },
+ {
+  "variant": "CUDA graphs of compiled",
+  "rows": 352,
+  "enqueue_ms": 0.4973645899857122,
+  "wall_ms_per_batch": 4.96997558999889,
+  "evals_per_second": 70825.29755444505
+ },
+ {
+  "variant": "compiled",
+  "evals_per_second_512": 78458.32303352284
+ },
+ {
+  "variant": "graphs of compiled",
+  "evals_per_second_512": 78729.13780084236
+ },
+ {
+  "variant": "graphs of eager",
+  "evals_per_second_512": 64808.24332787001
+ }
+]

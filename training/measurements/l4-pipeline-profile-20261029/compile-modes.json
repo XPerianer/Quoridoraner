@@ -1,0 +1,50 @@
+[
+ {
+  "kind": "forward",
+  "variant": "eager channels_last",
+  "warmup_seconds": 0.7339941580003142,
+  "64": 19595.57836062188,
+  "256": 66524.65234053133,
+  "512": 65403.950151533856,
+  "mixed": 65406.98100606637
+ },
+ {
+  "kind": "forward",
+  "variant": "compile default dynamic",
+  "warmup_seconds": 10.431352124000114,
+  "64": 27945.76750000289,
+  "256": 79383.6255429708,
+  "512": 78430.40160400589,
+  "mixed": 79370.90414698991
+ },
+ {
+  "kind": "forward",
+  "variant": "compile max-autotune-no-cudagraphs dynamic",
+  "warmup_seconds": 15.201334456999575,
+  "64": 25352.555538975255,
+  "256": 78945.91329128706,
+  "512": 78832.07423573814,
+  "mixed": 79611.00514787895
+ },
+ {
+  "kind": "forward",
+  "variant": "compile default static",
+  "warmup_seconds": 28.099333494999883,
+  "64": 28179.61984761058,
+  "256": 77546.77132176961,
+  "512": 65939.08146947453,
+  "mixed": 69979.73008740685
+ },
+ {
+  "kind": "train",
+  "variant": "channels_last",
+  "warmup_seconds": 0.9821812549998867,
+  "seconds_per_1000": 64.36290838500099
+ },
+ {
+  "kind": "train",
+  "variant": "channels_last + compile",
+  "warmup_seconds": 0.6368924019998303,
+  "seconds_per_1000": 64.61648725000032
+ }
+]

@@ -1,0 +1,337 @@
+[
+ {
+  "kind": "forward",
+  "variant": "baseline bf16 autocast",
+  "batch": 64,
+  "model_only": 10894.055624837818,
+  "full": 10059.065039741989
+ },
+ {
+  "kind": "forward",
+  "variant": "baseline bf16 autocast",
+  "batch": 256,
+  "model_only": 43809.86097953411,
+  "full": 38423.11716396123
+ },
+ {
+  "kind": "forward",
+  "variant": "baseline bf16 autocast",
+  "batch": 512,
+  "model_only": 42859.826984815154,
+  "full": 41294.25686041607
+ },
+ {
+  "kind": "forward",
+  "variant": "baseline bf16 autocast",
+  "batch": 1024,
+  "model_only": 40792.57523824836,
+  "full": 40130.3830672563
+ },
+ {
+  "kind": "forward",
+  "variant": "baseline bf16 autocast",
+  "batch": 2048,
+  "model_only": 31614.143084253796,
+  "full": 30525.563566465025
+ },
+ {
+  "kind": "forward",
+  "variant": "baseline pinned input",
+  "batch": 64,
+  "model_only": 11079.731782368091,
+  "full": 10411.875848201607
+ },
+ {
+  "kind": "forward",
+  "variant": "baseline pinned input",
+  "batch": 256,
+  "model_only": 43811.33746802339,
+  "full": 41326.992599416495
+ },
+ {
+  "kind": "forward",
+  "variant": "baseline pinned input",
+  "batch": 512,
+  "model_only": 44183.28477644741,
+  "full": 42648.28470864292
+ },
+ {
+  "kind": "forward",
+  "variant": "baseline pinned input",
+  "batch": 1024,
+  "model_only": 40804.16276330949,
+  "full": 39798.835733739725
+ },
+ {
+  "kind": "forward",
+  "variant": "baseline pinned input",
+  "batch": 2048,
+  "model_only": 31331.94252951436,
+  "full": 30963.4019913634
+ },
+ {
+  "kind": "forward",
+  "variant": "channels_last",
+  "batch": 64,
+  "model_only": 11907.723059012289,
+  "full": 10918.270221354074
+ },
+ {
+  "kind": "forward",
+  "variant": "channels_last",
+  "batch": 256,
+  "model_only": 47828.02806659426,
+  "full": 41468.55488230616
+ },
+ {
+  "kind": "forward",
+  "variant": "channels_last",
+  "batch": 512,
+  "model_only": 60206.230562280616,
+  "full": 55629.03572491075
+ },
+ {
+  "kind": "forward",
+  "variant": "channels_last",
+  "batch": 1024,
+  "model_only": 50808.6172555198,
+  "full": 51137.8707087754
+ },
+ {
+  "kind": "forward",
+  "variant": "channels_last",
+  "batch": 2048,
+  "model_only": 41445.35434799476,
+  "full": 40114.4134102002
+ },
+ {
+  "kind": "forward",
+  "variant": "fused BN",
+  "batch": 64,
+  "model_only": 13450.357862140729,
+  "full": 12248.66263870884
+ },
+ {
+  "kind": "forward",
+  "variant": "fused BN",
+  "batch": 256,
+  "model_only": 47532.74628630404,
+  "full": 42823.65456590826
+ },
+ {
+  "kind": "forward",
+  "variant": "fused BN",
+  "batch": 512,
+  "model_only": 44411.448551926194,
+  "full": 41890.58549098556
+ },
+ {
+  "kind": "forward",
+  "variant": "fused BN",
+  "batch": 1024,
+  "model_only": 43260.257242183136,
+  "full": 41906.653567000314
+ },
+ {
+  "kind": "forward",
+  "variant": "fused BN",
+  "batch": 2048,
+  "model_only": 31934.92470901098,
+  "full": 31132.001861826782
+ },
+ {
+  "kind": "forward",
+  "variant": "fused BN, bf16 weights",
+  "batch": 64,
+  "model_only": 17168.128325937716,
+  "full": 15086.153538686136
+ },
+ {
+  "kind": "forward",
+  "variant": "fused BN, bf16 weights",
+  "batch": 256,
+  "model_only": 48341.59261163597,
+  "full": 44078.197205636716
+ },
+ {
+  "kind": "forward",
+  "variant": "fused BN, bf16 weights",
+  "batch": 512,
+  "model_only": 44831.6139391774,
+  "full": 42679.079428264864
+ },
+ {
+  "kind": "forward",
+  "variant": "fused BN, bf16 weights",
+  "batch": 1024,
+  "model_only": 43549.96096319074,
+  "full": 42138.77246247848
+ },
+ {
+  "kind": "forward",
+  "variant": "fused BN, bf16 weights",
+  "batch": 2048,
+  "model_only": 32259.497529127257,
+  "full": 31199.552478906116
+ },
+ {
+  "kind": "forward",
+  "variant": "fused BN, fp16 weights",
+  "batch": 64,
+  "model_only": 17231.76617760452,
+  "full": 14918.638226569165
+ },
+ {
+  "kind": "forward",
+  "variant": "fused BN, fp16 weights",
+  "batch": 256,
+  "model_only": 47807.52641876508,
+  "full": 43611.437675250694
+ },
+ {
+  "kind": "forward",
+  "variant": "fused BN, fp16 weights",
+  "batch": 512,
+  "model_only": 44442.48724562611,
+  "full": 42280.53378876703
+ },
+ {
+  "kind": "forward",
+  "variant": "fused BN, fp16 weights",
+  "batch": 1024,
+  "model_only": 42170.47823546177,
+  "full": 41242.373332650735
+ },
+ {
+  "kind": "forward",
+  "variant": "fused BN, fp16 weights",
+  "batch": 2048,
+  "model_only": 31680.54003935728,
+  "full": 30862.615500147058
+ },
+ {
+  "kind": "forward",
+  "variant": "fused BN, bf16 weights, channels_last",
+  "batch": 64,
+  "model_only": 18822.252795056447,
+  "full": 16151.884076664675
+ },
+ {
+  "kind": "forward",
+  "variant": "fused BN, bf16 weights, channels_last",
+  "batch": 256,
+  "model_only": 63722.672522968285,
+  "full": 55906.48066074623
+ },
+ {
+  "kind": "forward",
+  "variant": "fused BN, bf16 weights, channels_last",
+  "batch": 512,
+  "model_only": 61353.38539535157,
+  "full": 56661.58883772717
+ },
+ {
+  "kind": "forward",
+  "variant": "fused BN, bf16 weights, channels_last",
+  "batch": 1024,
+  "model_only": 52963.44264426238,
+  "full": 51214.38989940116
+ },
+ {
+  "kind": "forward",
+  "variant": "fused BN, bf16 weights, channels_last",
+  "batch": 2048,
+  "model_only": 40492.861922794706,
+  "full": 40970.20246076188
+ },
+ {
+  "kind": "forward",
+  "variant": "fused BN, bf16 weights, compile",
+  "batch": 64,
+  "model_only": 22087.814507674757,
+  "full": 18590.65272919987
+ },
+ {
+  "kind": "forward",
+  "variant": "fused BN, bf16 weights, compile",
+  "batch": 256,
+  "model_only": 73198.07026186632,
+  "full": 60809.419055988285
+ },
+ {
+  "kind": "forward",
+  "variant": "fused BN, bf16 weights, compile",
+  "batch": 512,
+  "model_only": 74091.87595905326,
+  "full": 65345.2042332543
+ },
+ {
+  "kind": "forward",
+  "variant": "fused BN, bf16 weights, compile",
+  "batch": 1024,
+  "model_only": 67437.91394773975,
+  "full": 61890.928538304855
+ },
+ {
+  "kind": "forward",
+  "variant": "fused BN, bf16 weights, compile",
+  "batch": 2048,
+  "model_only": 32102.33973100511,
+  "full": 31034.016209521018
+ },
+ {
+  "kind": "forward",
+  "variant": "fused BN, bf16 weights, compile + CUDA graphs",
+  "batch": 64,
+  "model_only": 15717.924267655942,
+  "full": 13896.553598415117
+ },
+ {
+  "kind": "forward",
+  "variant": "fused BN, bf16 weights, compile + CUDA graphs",
+  "batch": 256,
+  "model_only": 48497.788203647826,
+  "full": 43481.45311930762
+ },
+ {
+  "kind": "forward",
+  "variant": "fused BN, bf16 weights, compile + CUDA graphs",
+  "batch": 512,
+  "model_only": 44967.88347264682,
+  "full": 42681.42092110162
+ },
+ {
+  "kind": "forward",
+  "variant": "fused BN, bf16 weights, compile + CUDA graphs",
+  "batch": 1024,
+  "model_only": 43723.92470459024,
+  "full": 42238.54783765872
+ },
+ {
+  "kind": "forward",
+  "variant": "fused BN, bf16 weights, compile + CUDA graphs",
+  "batch": 2048,
+  "model_only": 32429.212166903006,
+  "full": 31340.56731221536
+ },
+ {
+  "kind": "train",
+  "variant": "features only (CPU)",
+  "seconds_per_1000": 0.8533556099973794
+ },
+ {
+  "kind": "train",
+  "variant": "baseline AdamW",
+  "seconds_per_1000": 84.97300213000017
+ },
+ {
+  "kind": "train",
+  "variant": "fused AdamW",
+  "seconds_per_1000": 85.17879890000131
+ },
+ {
+  "kind": "train",
+  "variant": "channels_last + fused AdamW",
+  "seconds_per_1000": 65.1934780349984
+ }
+]

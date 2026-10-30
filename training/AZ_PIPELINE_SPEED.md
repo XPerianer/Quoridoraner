@@ -7,12 +7,38 @@ The shared lookup has two levels:
 
 - Native workers share up to 4,096 wall geometries' goal-distance maps. These
   depend on walls only; pawn-source distances are still calculated separately.
-- All concurrent games share up to 32,768 neural evaluations. Keys hash every
-  input feature, including repetition count and remaining move budget. Duplicate
-  leaves in the same wave are evaluated once. Entries are invalidated when the
+- All concurrent games share up to 1,048,576 neural evaluations in native code
+  (about 1 GB when full). Keys are the board, repetition count and remaining
+  plies, which fully determine the network input. Lookups happen during tree
+  selection, so a hit needs no GPU round-trip; identical leaves in one wave are
+  evaluated once. Eviction is first in, first out. The cache is cleared when the
   network or its parameter/buffer versions change. Trees, visits and search
   histories remain separate. `metrics.json` includes cumulative cache, search,
   and inference counters in `search_stats`.
+- With one network, `play()` does not advance games in lockstep: a game plays
+  its move as soon as its own search finishes, and starts the next search in the
+  following wave. Each game samples noise and temperature from its own random
+  stream, so this scheduling does not change any game. Checkpoints stop new
+  searches, finish those in flight, and save at a move boundary. Matches between
+  two networks still move all games together.
+- Searches are split into two groups. While one group's batch runs on the GPU,
+  the CPU backs up the other group's results and selects its next leaves.
+  Inputs and outputs go through pinned host memory, so copies do not block.
+- On CUDA, search uses a separate inference copy of the network: BatchNorm
+  folded into the convolutions, bf16 channels-last weights, `torch.compile`
+  with dynamic batch sizes, replayed as one CUDA graph per batch size. Batches
+  are padded to a multiple of 64 rows. After training, new weights are loaded
+  into the same copy, which needs no recompilation. Training uses
+  channels-last layout on CUDA.
+- An RL iteration ends once `--games` games have finished. A game that ends is
+  replaced immediately, so `--games` games always run and batches stay full.
+  Games still running at the boundary finish their current move and carry over
+  (their trees are dropped). The end-of-iteration checkpoint includes them.
+- Per-move bookkeeping is native: each tree keeps its game history in C++,
+  moves and finished searches go through one call per loop pass, and root
+  noise is drawn in C++ from a per-move seed.
+- Negamax replies run on a separate native pool and thread. They are applied
+  one loop pass later, so results do not depend on timing.
 
 Pawn-only leaves use bounded exact proof search (four plies, at most 256 proof
 nodes per attempted leaf). Goals, threefold repetition and the move limit are
@@ -20,11 +46,12 @@ checked before depth limits. Proven values bypass neural inference. Unknown
 results fall back to the network. This is a limited endgame solver, not a
 complete tablebase, and it can change policies and playing strength.
 
-New RL runs default to 1,024 simultaneous games (previously 256). The A100
-launch script now requests 1,024 instead of 512. This also doubles games per
-iteration in that script; compare games/second and strength per hour, rather
-than treating iteration time as equal work. Existing resumed runs retain their
-saved game count. Memory and GPU throughput must be checked on the actual VM.
+New RL runs default to 1,024 simultaneous games (previously 256). The Colab
+launch script requests 2,048, which is about 6% faster per game on an L4 and
+matches SigmaQuoridor's cycle size. It also sets `--checkpoint-seconds 600`:
+iterations take about 95 s and every iteration end saves the carried games, so
+in-iteration checkpoints would only add drains. Existing resumed runs retain
+their saved game count.
 
 ## Recovery
 
@@ -62,35 +89,22 @@ in a fresh process; different GPU kernels/batch shapes or devices may round
 outputs differently. Only load checkpoints you trust (the existing Torch loader
 uses Python object deserialization).
 
-## Measured results and remaining target
+## Measured results
 
-Raw local CPU measurements: `measurements/az-pipeline-speed-20261029.json`.
-32-channel, two-block model, 64 simulations, two native workers, three repeats;
-median cache-on versus cache-off search throughput:
+[Profile of the full `rl` loop on one L4](measurements/l4-pipeline-profile-20261029/README.md),
+200 simulations, half the games against negamax: an iteration of 1,024 games
+took 96 s before these pipeline changes; 2,048 games now take 84 s (about
+2.3× the games per hour, including training).
 
-| Concurrent games | Varied openings | Shared initial position |
-| --- | ---: | ---: |
-| 64 | 1.49× | 7.12× |
-| 256 | 1.67× | 8.35× |
 
-This isolates the neural lookup, with the same native optimizations in both
-variants. It is **not** an end-to-end 3–4× pipeline result. It excludes replay
-training, durable I/O and negamax turns. Increasing concurrent games did not
-materially improve varied-opening CPU throughput here. GPU measurements of the
-128×10 model at 512/1024 games and persistent-storage checkpoint overhead are
-still needed to establish whether the requested 3–4× target is reached.
+[One L4, 128×10 network, 1,024 self-play games](measurements/l4-native-lookup-20261029/README.md):
+51.4k games/h at 200 simulations and 13.8k at 800, against 27.6k and 7.3k for the
+best configuration of the previous Python lookup with lockstep play (1.86× and
+1.89×). SigmaQuoridor reports ~24k games/h at 800 simulations on an RTX 5070 Ti.
 
-Reproduce and measure the deployment model:
+Earlier CPU measurement of the Python lookup alone:
+`measurements/az-pipeline-speed-20261029.json`.
 
 ```sh
-.venv/bin/python training/benchmark_az_pipeline.py
-python training/benchmark_az_pipeline.py --device cuda --channels 128 --blocks 10 \
-  --batches 512 1024 --out /path/to/persistent/az-throughput.json
 .venv/bin/python -m unittest discover -s training -p 'test_az*.py' -v
 ```
-
-The benchmark alternates variant order, warms inference, and reports individual
-measurements and searches/second. It compares identical jobs and budgets at each
-batch size. Compare full-run `play_seconds`, `seconds`, game counts and durable
-save costs separately. Retain the same seeds and evaluation suites for strength
-checks because the endgame solver changes search behavior.

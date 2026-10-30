@@ -42,7 +42,7 @@ def main():
                     # Warm up model, then drop all retained roots and cache entries.
                     e.search(model, jobs[:1], 2, args.device)
                     e.clear()
-                    e.cache.clear()
+                    e.clear_cache()
                     start = time.perf_counter()
                     e.search(model, jobs, args.simulations, args.device)
                     elapsed = time.perf_counter() - start

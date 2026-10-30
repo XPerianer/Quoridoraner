@@ -7,12 +7,14 @@
 #include <cstring>
 #include <cmath>
 #include <condition_variable>
+#include <deque>
 #include <exception>
 #include <functional>
 #include <map>
 #include <memory>
 #include <mutex>
 #include <thread>
+#include <unordered_map>
 #include <string>
 using quoridor::Board;
 using Key = std::array<uint64_t, 3>;
@@ -179,6 +181,60 @@ struct Node {
     }
 };
 struct Settings { double cpuct=1.5, fpu=0.25; };
+// Network outputs depend only on the features, which are a function of the board,
+// repetition count (capped at 3) and remaining plies; this key is exact.
+struct Leaf {
+    Key board{}; int repetitions=0, left=0, maxPlies=0;
+    bool operator==(const Leaf& o) const { return board==o.board && repetitions==o.repetitions && left==o.left && maxPlies==o.maxPlies; }
+};
+struct LeafHash {
+    size_t operator()(const Leaf& k) const {
+        uint64_t h=0x9e3779b97f4a7c15ull;
+        auto mix=[&](uint64_t v) { h^=v+0x9e3779b97f4a7c15ull+(h<<6)+(h>>2); h*=0xff51afd7ed558ccdull; h^=h>>32; };
+        for(auto v:k.board) mix(v);
+        mix(uint64_t(k.repetitions)|uint64_t(k.left)<<8|uint64_t(k.maxPlies)<<24);
+        return size_t(h);
+    }
+};
+struct Entry { std::vector<float> priors; float value; };
+// Shared across all games and threads. Priors are stored in the node's edge order
+// (normalized over legal moves); first-in first-out eviction.
+class Cache {
+    static constexpr int SHARDS=64;
+    struct Shard { std::mutex mutex; std::unordered_map<Leaf,Entry,LeafHash> map; std::deque<Leaf> order; };
+    Shard shards[SHARDS];
+    size_t limit=0;
+    Shard& shard(const Leaf& k) { return shards[LeafHash()(k)>>58]; }
+public:
+    bool enabled() const { return limit>0; }
+    void resize(size_t n) {
+        limit=n;
+        for(auto& s:shards) {
+            std::lock_guard<std::mutex> lock(s.mutex);
+            while(s.order.size()>(limit+SHARDS-1)/SHARDS) { s.map.erase(s.order.front()); s.order.pop_front(); }
+        }
+    }
+    void clear() { for(auto& s:shards) { std::lock_guard<std::mutex> lock(s.mutex); s.map.clear(); s.order.clear(); } }
+    bool find(const Leaf& k, Node* node, float& value);
+    void insert(const Leaf& k, const Node* node, float value) {
+        if(!limit) return;
+        Shard& s=shard(k); std::lock_guard<std::mutex> lock(s.mutex);
+        Entry e{std::vector<float>(node->edges.size()), value};
+        for(size_t i=0;i<node->edges.size();i++) e.priors[i]=node->edges[i].prior;
+        if(!s.map.emplace(k,std::move(e)).second) return;
+        s.order.push_back(k);
+        while(s.order.size()>(limit+SHARDS-1)/SHARDS) { s.map.erase(s.order.front()); s.order.pop_front(); }
+    }
+};
+bool Cache::find(const Leaf& k, Node* node, float& value) {
+    if(!limit) return false;
+    Shard& s=shard(k); std::lock_guard<std::mutex> lock(s.mutex);
+    auto it=s.map.find(k);
+    if(it==s.map.end()) return false;
+    if(it->second.priors.size()!=node->edges.size()) throw std::runtime_error("Cached policy size mismatch");
+    for(size_t i=0;i<node->edges.size();i++) node->edges[i].prior=it->second.priors[i];
+    node->expanded=true; value=it->second.value; return true;
+}
 struct Job {
     Node* root=nullptr;
     Node* pending=nullptr;
@@ -186,7 +242,19 @@ struct Job {
     std::vector<std::pair<Key,int>> history;
     std::vector<double> noise;
     Settings settings;
+    Cache* cache=nullptr;
+    std::atomic<int64_t>* hits=nullptr;
+    Leaf leaf;  // Cache key of `pending`.
+    bool active=false;
+    int group=0;  // Waves evaluate one group while the other's batch is on the device.
     int ply=0, maxPlies=0, simulations=0, completed=0;
+    bool finished() const { return active && !pending && completed>=simulations; }
+    // Leaf key for `node` at the end of the current path; true if the cache expanded it.
+    bool lookup(Node* node, float& value) {
+        leaf={node->key, std::min(repetitions(node),3), maxPlies-ply-int(path.size())+1, maxPlies};
+        if(!cache->find(leaf,node,value)) return false;
+        ++*hits; return true;
+    }
     int repetitions(const Node* node) const {
         int n=0;
         for (const auto& h:history) if (h.first==node->key) { n=h.second; break; }
@@ -221,8 +289,13 @@ struct Job {
         return best==1 ? 1 : unknown ? 2 : best;
     }
     void select() {
+        if (!active) return;
         if (pending) throw std::runtime_error("Missing neural evaluation");
-        if (!root->expanded) { path={root}; pending=root; root->legal(); return; }
+        if (!root->expanded) {
+            path={root}; root->legal(); float value;
+            if (!lookup(root,value)) { pending=root; return; }
+            root->visits++; root->total+=value;
+        }
         while (completed<simulations) {
             Node* current=root; path={root};
             while (true) {
@@ -235,7 +308,9 @@ struct Job {
                         int value=solve(current->board,4,ply+int(path.size())-1,branch,budget);
                         if(value!=2) { backup(value); break; }
                     }
-                    pending=current; current->legal(); return;
+                    current->legal(); float value;
+                    if (lookup(current,value)) { backup(value); break; }
+                    pending=current; return;
                 }
                 // First-play urgency: unvisited moves look slightly worse than the parent.
                 double parentQ=current->visits ? current->total/current->visits : 0;
@@ -256,11 +331,35 @@ struct Job {
         }
     }
 };
+// Dirichlet root noise from a per-search seed (splitmix64; Marsaglia-Tsang gamma).
+struct Random {
+    uint64_t state;
+    uint64_t next() { uint64_t z=(state+=0x9e3779b97f4a7c15ull); z=(z^(z>>30))*0xbf58476d1ce4e5b9ull; z=(z^(z>>27))*0x94d049bb133111ebull; return z^(z>>31); }
+    double uniform() { return (next()>>11)*0x1.0p-53; }
+    double normal() { return std::sqrt(-2*std::log(1-uniform()))*std::cos(2*M_PI*uniform()); }
+    double gamma(double a) {
+        if(a<1) return gamma(a+1)*std::pow(1-uniform(),1/a);
+        double d=a-1.0/3, c=1/std::sqrt(9*d);
+        while(true) {
+            double x=normal(), v=1+c*x; if(v<=0) continue;
+            v=v*v*v; double u=1-uniform();
+            if(std::log(u)<0.5*x*x+d-d*v+d*std::log(v)) return d*v;
+        }
+    }
+};
 struct Pool {
     Team team;
     Settings settings;
     std::map<int,std::unique_ptr<Node>> roots;
+    // Game history (position -> occurrences) per tree, kept current by az_advance.
+    std::map<int,std::vector<std::pair<Key,int>>> histories;
     std::vector<Job> jobs;
+    Cache cache;
+    // Per group: jobs awaiting evaluation and their row in the deduplicated batch.
+    std::vector<int> leaves[2], rows[2];
+    void reset() { jobs.clear(); for(int g=0;g<2;g++) { leaves[g].clear(); rows[g].clear(); } }
+    std::atomic<int64_t> hits{0};
+    int64_t duplicates=0, unique=0, waves=0;
     std::vector<std::unique_ptr<quoridor::Searcher>> opponents;
     explicit Pool(int workers):team(workers),opponents(workers) {}
 };
@@ -325,15 +424,22 @@ int az_restore(Pool* p, const uint8_t* data, int size) {
         std::map<int,std::unique_ptr<Node>> roots;
         for(uint32_t i=0;i<count;++i) { int id=r.get<int>(); roots[id]=r.node(); }
         if(r.offset!=r.size) throw std::runtime_error("Trailing tree data");
-        p->jobs.clear(); p->roots=std::move(roots); return 0;
+        p->reset(); p->roots=std::move(roots); p->histories.clear(); return 0;
     });
 }
 
 void* az_create(int workers) { try { error.clear(); return new Pool(workers); } catch(const std::exception& e) { error=e.what(); return nullptr; } }
 void az_destroy(Pool* p) { delete p; }
 int az_settings(Pool* p, double cpuct, double fpu) { return guard([&] { p->settings={cpuct,fpu}; return 0; }); }
-int az_clear(Pool* p) { return guard([&] { p->jobs.clear(); p->roots.clear(); return 0; }); }
-int az_drop(Pool* p,int id) { return guard([&] { p->roots.erase(id); return 0; }); }
+int az_clear(Pool* p) { return guard([&] { p->reset(); p->roots.clear(); p->histories.clear(); return 0; }); }
+int az_drop(Pool* p,int id) { return guard([&] { p->roots.erase(id); p->histories.erase(id); return 0; }); }
+int az_history(Pool* p,int id,const uint64_t* keys,const int32_t* counts,int n) {
+    return guard([&] {
+        auto& h=p->histories[id]; h.clear();
+        for(int i=0;i<n;i++) h.emplace_back(Key{keys[3*i],keys[3*i+1],keys[3*i+2]},counts[i]);
+        return 0;
+    });
+}
 // Legal real moves; returns count, or 0 for a finished game.
 int az_legal(const uint64_t* position,int32_t* legal) {
     return guard([&] { Board b=unpack(position); return b.winner()==-1?b.generate(legal):0; });
@@ -341,16 +447,24 @@ int az_legal(const uint64_t* position,int32_t* legal) {
 int az_distances(const uint64_t* position,int32_t* out) {
     return guard([&] { Board b=unpack(position); out[0]=b.distance(0); out[1]=b.distance(1); return 0; });
 }
-// Apply a real move; keeps the matching subtree as the new root for game `id` (if id >= 0).
-int az_advance(Pool* p,int id,const uint64_t* position,int move,uint64_t* result) {
+// Apply real moves; for ids >= 0, keeps the matching subtree as the new root and counts
+// the new position in that tree's history.
+int az_advance(Pool* p,int count,const int32_t* ids,const uint64_t* positions,const int32_t* moves,uint64_t* results) {
     return guard([&] {
-        Board b=unpack(position); int moves[136], n=b.winner()==-1?b.generate(moves):0;
-        if(std::find(moves,moves+n,move)==moves+n) throw std::runtime_error("Illegal move");
-        Key before=packed(b); b.make(move); Key after=packed(b); std::copy(after.begin(),after.end(),result);
-        if(id<0) return 0;
-        auto& root=p->roots[id]; std::unique_ptr<Node> next;
-        if(root && root->key==before) for(auto& e:root->edges) if(e.move==move) { next=std::move(e.child); break; }
-        root=next?std::move(next):std::make_unique<Node>(b); return 0;
+        for(int i=0;i<count;i++) {
+            Board b=unpack(positions+3*i); int legal[136], n=b.winner()==-1?b.generate(legal):0, move=moves[i];
+            if(std::find(legal,legal+n,move)==legal+n) throw std::runtime_error("Illegal move");
+            Key before=packed(b); b.make(move); Key after=packed(b); std::copy(after.begin(),after.end(),results+3*i);
+            if(ids[i]<0) continue;
+            auto history=p->histories.find(ids[i]);
+            if(history==p->histories.end()) throw std::runtime_error("Unknown game history");
+            auto seen=std::find_if(history->second.begin(),history->second.end(),[&](const auto& h) { return h.first==after; });
+            if(seen==history->second.end()) history->second.emplace_back(after,1); else seen->second++;
+            auto& root=p->roots[ids[i]]; std::unique_ptr<Node> next;
+            if(root && root->key==before) for(auto& e:root->edges) if(e.move==move) { next=std::move(e.child); break; }
+            root=next?std::move(next):std::make_unique<Node>(b);
+        }
+        return 0;
     });
 }
 // Batch feature extraction for supervised data.
@@ -365,78 +479,127 @@ int az_features(Pool* p,const uint64_t* positions,const int32_t* repetitions,con
 int az_canonical_moves(int turn,int mirror,int32_t* out) {
     return guard([&] { for(int m=0;m<209;m++) out[m]=canonical(m,turn==1,mirror); return 0; });
 }
-int az_start(Pool* p) { return guard([&] { p->jobs.clear(); return 0; }); }
-int az_begin(Pool* p,int id,const uint64_t* position,const uint64_t* history,const int32_t* counts,int historySize,
-             int ply,int maxPlies,int simulations,const double* noise,int noiseSize) {
+int az_start(Pool* p) { return guard([&] { p->reset(); return 0; }); }
+// Searches the position of tree `id` against its registered history. With `noise`, the
+// root priors mix in Dirichlet(0.3) noise drawn from `seed`.
+int az_begin(Pool* p,int id,const uint64_t* position,int ply,int maxPlies,int simulations,uint64_t seed,int noise,int group) {
     return guard([&] {
-        if(simulations<1 || ply<0 || maxPlies<=ply || historySize<0 || noiseSize<0 || noiseSize>136) throw std::runtime_error("Invalid search budget");
+        if(simulations<1 || ply<0 || maxPlies<=ply) throw std::runtime_error("Invalid search budget");
+        if(group<0 || group>1) throw std::runtime_error("Invalid search group");
         Board b=unpack(position); Key k=packed(b); auto& root=p->roots[id];
         if(!root || root->key!=k) root=std::make_unique<Node>(b);
         Job j; j.root=root.get(); j.ply=ply; j.maxPlies=maxPlies; j.simulations=simulations; j.settings=p->settings;
+        j.cache=&p->cache; j.hits=&p->hits; j.active=true; j.group=group;
         // Retained visits count toward the budget; the root's own expansion is not a simulation.
         j.completed=std::min(simulations-1,std::max(0,root->visits-1));
-        for(int i=0;i<historySize;i++) { Key h={history[3*i],history[3*i+1],history[3*i+2]}; j.history.emplace_back(h,counts[i]); }
+        auto history=p->histories.find(id);
+        if(history==p->histories.end()) throw std::runtime_error("Unknown game history");
+        j.history=history->second;
         if(b.winner()!=-1 || j.repetitions(root.get())>=3) throw std::runtime_error("Cannot search a finished game");
-        j.noise.assign(noise,noise+noiseSize);
         root->legal();
-        if(noiseSize && noiseSize!=int(root->edges.size())) throw std::runtime_error("Incorrect root noise length");
-        p->jobs.push_back(std::move(j)); return 0;
+        if(noise) {
+            Random r{seed}; double sum=0;
+            for(size_t i=0;i<root->edges.size();i++) { j.noise.push_back(r.gamma(0.3)); sum+=j.noise.back(); }
+            for(auto& v:j.noise) v/=sum;
+        }
+        for(size_t i=0;i<p->jobs.size();i++) if(!p->jobs[i].active) { p->jobs[i]=std::move(j); return int(i); }
+        p->jobs.push_back(std::move(j)); return int(p->jobs.size())-1;
     });
 }
-// One leaf per job: writes features and canonical legal move IDs.
-int az_wave(Pool* p,float* out,int32_t* legal,int32_t* counts,int32_t* indices) {
+// Advances every active job of `group` to its next uncached leaf. Writes features and
+// canonical legal move IDs for each distinct leaf (identical leaves share one row);
+// returns the row count. Zero means every active job of the group has finished its budget.
+int az_wave(Pool* p,int group,float* out,int32_t* legal,int32_t* counts) {
     return guard([&] {
-        p->team.run(p->jobs.size(),[&](int,int i){ p->jobs[i].select(); });
-        std::vector<int> pending;
-        for(size_t i=0;i<p->jobs.size();i++) if(p->jobs[i].pending) pending.push_back(i);
-        p->team.run(pending.size(),[&](int,int n) {
-            Job& j=p->jobs[pending[n]]; const Board& b=j.pending->board;
+        if(group<0 || group>1) throw std::runtime_error("Invalid search group");
+        if(!p->leaves[group].empty()) throw std::runtime_error("Group still awaits evaluation");
+        p->team.run(p->jobs.size(),[&](int,int i){ if(p->jobs[i].group==group) p->jobs[i].select(); });
+        auto& leaves=p->leaves[group]; auto& rows=p->rows[group];
+        std::unordered_map<Leaf,int,LeafHash> seen;
+        std::vector<int> first;
+        for(size_t i=0;i<p->jobs.size();i++) {
+            if(!p->jobs[i].active || p->jobs[i].group!=group || !p->jobs[i].pending) continue;
+            int row=int(first.size());
+            if(p->cache.enabled()) {
+                auto it=seen.emplace(p->jobs[i].leaf,row);
+                if(!it.second) { row=it.first->second; ++p->duplicates; }
+            }
+            if(row==int(first.size())) first.push_back(i);
+            leaves.push_back(i); rows.push_back(row);
+        }
+        p->team.run(first.size(),[&](int,int n) {
+            Job& j=p->jobs[first[n]]; const Board& b=j.pending->board;
             const int depth=int(j.path.size())-1;
-            indices[n]=pending[n]; counts[n]=j.pending->edges.size();
+            counts[n]=j.pending->edges.size();
             features(b,j.repetitions(j.pending),float(j.maxPlies-j.ply-depth)/j.maxPlies,false,out+size_t(n)*FEATURES);
             std::fill(legal+n*136,legal+(n+1)*136,0);
             for(size_t k=0;k<j.pending->edges.size();k++) legal[n*136+k]=canonical(j.pending->edges[k].move,b.turn==1,false);
         });
-        return int(pending.size());
+        p->unique+=first.size(); if(!first.empty()) ++p->waves;
+        return int(first.size());
     });
 }
-int az_evaluate(Pool* p,const float* policies,const float* values,const int32_t* indices,int n) {
+// Rows follow az_wave's order for the same group; every job sharing a row receives the same evaluation.
+int az_evaluate(Pool* p,int group,const float* policies,const float* values,int n) {
     return guard([&] {
-        for(int i=0;i<n;i++) {
-            if(indices[i]<0 || indices[i]>=int(p->jobs.size())) throw std::runtime_error("Invalid leaf index");
-            Job& j=p->jobs[indices[i]]; if(!j.pending) throw std::runtime_error("Unexpected evaluation");
-            if(!std::isfinite(values[i])) throw std::runtime_error("Invalid value");
+        if(group<0 || group>1) throw std::runtime_error("Invalid search group");
+        auto& leaves=p->leaves[group]; auto& rows=p->rows[group];
+        std::vector<char> stored(n,0);
+        for(size_t i=0;i<leaves.size();i++) {
+            int r=rows[i];
+            if(r<0 || r>=n) throw std::runtime_error("Missing leaf evaluation");
+            Job& j=p->jobs[leaves[i]]; if(!j.pending) throw std::runtime_error("Unexpected evaluation");
+            if(!std::isfinite(values[r])) throw std::runtime_error("Invalid value");
             double sum=0;
-            for(size_t k=0;k<j.pending->edges.size();k++) { double v=policies[i*136+k]; if(!std::isfinite(v) || v<0) throw std::runtime_error("Invalid policy"); sum+=v; }
+            for(size_t k=0;k<j.pending->edges.size();k++) { double v=policies[r*136+k]; if(!std::isfinite(v) || v<0) throw std::runtime_error("Invalid policy"); sum+=v; }
             if(sum<=0) throw std::runtime_error("Empty policy");
-            for(size_t k=0;k<j.pending->edges.size();k++) j.pending->edges[k].prior=policies[i*136+k]/sum;
+            for(size_t k=0;k<j.pending->edges.size();k++) j.pending->edges[k].prior=policies[r*136+k]/sum;
             j.pending->expanded=true;
-            if(j.pending==j.root && j.path.size()==1) { j.root->visits++; j.root->total+=values[i]; }
-            else j.backup(values[i]);
+            if(!stored[r]) { p->cache.insert(j.leaf,j.pending,values[r]); stored[r]=1; }
+            if(j.pending==j.root && j.path.size()==1) { j.root->visits++; j.root->total+=values[r]; }
+            else j.backup(values[r]);
             j.pending=nullptr;
         }
+        leaves.clear(); rows.clear();
         return 0;
     });
 }
-// Root visit distributions in REAL move IDs, plus root Q (side to move) per job.
-int az_policy(Pool* p,float* out,float* rootValue) {
+// Slots whose search budget is complete (written in ascending order); returns the count.
+int az_finished(Pool* p,int32_t* out) {
     return guard([&] {
-        for(size_t i=0;i<p->jobs.size();i++) {
-            Job& j=p->jobs[i]; if(j.pending || j.completed<j.simulations) throw std::runtime_error("Search still in progress");
+        int n=0;
+        for(size_t i=0;i<p->jobs.size();i++) if(p->jobs[i].finished()) out[n++]=i;
+        return n;
+    });
+}
+// Root visit distributions (REAL move IDs) and root Q of finished slots; frees the slots.
+int az_take(Pool* p,const int32_t* slots,int n,float* out,float* rootValues) {
+    return guard([&] {
+        for(int i=0;i<n;i++) {
+            int slot=slots[i];
+            if(slot<0 || slot>=int(p->jobs.size()) || !p->jobs[slot].finished()) throw std::runtime_error("Search still in progress");
+            Job& j=p->jobs[slot]; float* row=out+209*size_t(i);
             double sum=0; for(auto& e:j.root->edges) if(e.child) sum+=e.child->visits;
-            std::fill(out+i*209,out+(i+1)*209,0);
-            for(auto& e:j.root->edges) if(e.child && sum>0) out[i*209+e.move]=e.child->visits/sum;
-            rootValue[i]=j.root->visits ? j.root->total/j.root->visits : 0;
+            std::fill(row,row+209,0);
+            for(auto& e:j.root->edges) if(e.child && sum>0) row[e.move]=e.child->visits/sum;
+            rootValues[i]=j.root->visits ? j.root->total/j.root->visits : 0;
+            j=Job();
         }
         return 0;
     });
 }
-int az_negamax(Pool* p,const uint64_t* positions,int n,int nodes,int64_t* out) {
+int az_cache(Pool* p,int64_t limit) { return guard([&] { if(limit<0) throw std::runtime_error("Invalid cache size"); p->cache.resize(limit); return 0; }); }
+int az_cache_clear(Pool* p) { return guard([&] { p->cache.clear(); return 0; }); }
+// Cumulative: cache hits during selection, in-wave duplicates, distinct evaluations, waves.
+int az_stats(Pool* p,int64_t* out) {
+    return guard([&] { out[0]=p->hits; out[1]=p->duplicates; out[2]=p->unique; out[3]=p->waves; return 0; });
+}
+int az_negamax(Pool* p,const uint64_t* positions,int n,const int32_t* nodes,int64_t* out) {
     return guard([&] {
-        if(nodes<1 || n<0) throw std::runtime_error("Invalid negamax budget");
+        if(n<0 || std::any_of(nodes,nodes+n,[](int v) { return v<1; })) throw std::runtime_error("Invalid negamax budget");
         p->team.run(n,[&](int worker,int i) {
             if(!p->opponents[worker]) p->opponents[worker]=std::make_unique<quoridor::Searcher>();
-            auto r=p->opponents[worker]->search(unpack(positions+3*i),nodes);
+            auto r=p->opponents[worker]->search(unpack(positions+3*i),nodes[i]);
             out[3*i]=r.move; out[3*i+1]=r.nodes; out[3*i+2]=r.score;
         }); return 0;
     });

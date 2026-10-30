@@ -1,0 +1,128 @@
+{
+ "info": {
+  "gpu": "NVIDIA L4",
+  "cpus": 12,
+  "torch": "2.11.0+cu130",
+  "machine": "Linux-6.6.159+-x86_64-with-glibc2.39",
+  "params": 3188012
+ },
+ "results": [
+  {
+   "kind": "inference",
+   "batch": 1024,
+   "evals_per_second": 41903.74813732408
+  },
+  {
+   "kind": "selfplay",
+   "games": 1024,
+   "simulations": 200,
+   "cache_limit": 0,
+   "max_plies": 100,
+   "seconds": 90.12600255012512,
+   "games_per_hour": 40902.73501201549,
+   "plies": 61689,
+   "moves_per_second": 684.4750488705033,
+   "mean_plies": 60.2431640625,
+   "cutoffs": 27,
+   "stats": {
+    "cache_hits": 0,
+    "unique_evaluations": 2025345,
+    "waves": 6515,
+    "leaves": 2025345,
+    "forward_seconds": 65.24056121700414,
+    "search_seconds": 11.74677897802394
+   }
+  },
+  {
+   "kind": "selfplay",
+   "games": 1024,
+   "simulations": 200,
+   "cache_limit": 1048576,
+   "max_plies": 100,
+   "seconds": 71.70149850845337,
+   "games_per_hour": 51413.151422008086,
+   "plies": 61707,
+   "moves_per_second": 860.6096285801467,
+   "mean_plies": 60.2607421875,
+   "cutoffs": 27,
+   "stats": {
+    "cache_hits": 585089,
+    "unique_evaluations": 1440333,
+    "waves": 4826,
+    "leaves": 2025422,
+    "forward_seconds": 46.687277465026455,
+    "search_seconds": 12.189177403983194
+   }
+  },
+  {
+   "kind": "selfplay",
+   "games": 1024,
+   "simulations": 800,
+   "cache_limit": 0,
+   "max_plies": 100,
+   "seconds": 403.84886860847473,
+   "games_per_hour": 9128.167209436726,
+   "plies": 61888,
+   "moves_per_second": 153.2454460334256,
+   "mean_plies": 60.4375,
+   "cutoffs": 25,
+   "stats": {
+    "cache_hits": 0,
+    "unique_evaluations": 9452586,
+    "waves": 30387,
+    "leaves": 9452586,
+    "forward_seconds": 317.96922743707637,
+    "search_seconds": 61.21090014397032
+   }
+  },
+  {
+   "kind": "selfplay",
+   "games": 1024,
+   "simulations": 800,
+   "cache_limit": 1048576,
+   "max_plies": 100,
+   "seconds": 268.0648400783539,
+   "games_per_hour": 13751.896738574464,
+   "plies": 61800,
+   "moves_per_second": 230.54123764211747,
+   "mean_plies": 60.3515625,
+   "cutoffs": 25,
+   "stats": {
+    "cache_hits": 3232223,
+    "unique_evaluations": 6211927,
+    "waves": 16774,
+    "leaves": 9444150,
+    "forward_seconds": 184.05561478695017,
+    "search_seconds": 61.41264793202481
+   }
+  },
+  {
+   "kind": "selfplay",
+   "games": 2048,
+   "simulations": 800,
+   "cache_limit": 1048576,
+   "max_plies": 100,
+   "seconds": 584.9004757404327,
+   "games_per_hour": 12605.221410816399,
+   "plies": 124100,
+   "moves_per_second": 212.17284845409003,
+   "mean_plies": 60.595703125,
+   "cutoffs": 40,
+   "stats": {
+    "cache_hits": 6329467,
+    "unique_evaluations": 12758862,
+    "waves": 19064,
+    "leaves": 19088329,
+    "forward_seconds": 413.97098184407787,
+    "search_seconds": 125.62963424790905
+   }
+  },
+  {
+   "kind": "train",
+   "steps": 300,
+   "batch": 1024,
+   "seconds": 25.509890211999846,
+   "seconds_per_1000_steps": 85.03296737333282
+  }
+ ]
+}

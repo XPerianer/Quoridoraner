@@ -7,11 +7,11 @@ Subcommands (see AZ_REPORT.md for the experiments and decisions):
   eval      paired-opening match of a checkpoint against fixed negamax
 """
 import argparse
-from collections import OrderedDict
+from concurrent.futures import ThreadPoolExecutor
+import copy
 import ctypes as C
 import json
 import fcntl
-import hashlib
 import math
 import os
 from pathlib import Path
@@ -45,8 +45,9 @@ def build():
 
 
 def ptr(array):
+    """Pointer to a contiguous array; it keeps the array alive, so temporaries are safe."""
     assert array.flags.c_contiguous
-    return C.c_void_p(array.ctypes.data)
+    return array.ctypes.data_as(C.c_void_p)
 
 
 def winner(position):
@@ -78,20 +79,25 @@ class Engine:
             'az_snapshot': (I, [P, P, I]), 'az_restore': (I, [P, P, I]),
             'az_create': (P, [I]), 'az_destroy': (None, [P]), 'az_error': (C.c_char_p, []), 'az_planes': (I, []),
             'az_settings': (I, [P, C.c_double, C.c_double]), 'az_clear': (I, [P]), 'az_drop': (I, [P, I]),
-            'az_legal': (I, [P, P]), 'az_distances': (I, [P, P]), 'az_advance': (I, [P, I, P, I, P]),
+            'az_legal': (I, [P, P]), 'az_distances': (I, [P, P]), 'az_advance': (I, [P, I, P, P, P, P]),
+            'az_history': (I, [P, I, P, P, I]),
             'az_features': (I, [P, P, P, P, P, I, P]), 'az_canonical_moves': (I, [I, I, P]),
-            'az_start': (I, [P]), 'az_begin': (I, [P, I, P, P, P, I, I, I, I, P, I]),
-            'az_wave': (I, [P, P, P, P, P]), 'az_evaluate': (I, [P, P, P, P, I]),
-            'az_policy': (I, [P, P, P]), 'az_negamax': (I, [P, P, I, I, P]),
+            'az_start': (I, [P]), 'az_begin': (I, [P, I, P, I, I, I, C.c_uint64, I, I]),
+            'az_wave': (I, [P, I, P, P, P]), 'az_evaluate': (I, [P, I, P, P, I]),
+            'az_finished': (I, [P, P]), 'az_take': (I, [P, P, I, P, P]), 'az_cache': (I, [P, C.c_int64]),
+            'az_cache_clear': (I, [P]), 'az_stats': (I, [P, P]), 'az_negamax': (I, [P, P, I, P, P]),
         }.items():
             fn = getattr(lib, name)
             fn.restype, fn.argtypes = result, args
         self.workers = workers or min(256, os.cpu_count() or 1)
         self.pool = lib.az_create(self.workers)
-        if not self.pool:
+        # Negamax opponents get their own pool and thread, so their replies overlap the searches.
+        self.opponents = lib.az_create(self.workers)
+        if not self.pool or not self.opponents:
             raise RuntimeError(lib.az_error().decode())
-        self.cache = OrderedDict()
-        self.cache_limit = 32768
+        self.background = ThreadPoolExecutor(1)
+        # Native evaluation cache shared by all games; 0 disables lookups and in-wave deduplication.
+        self.cache_limit = 1 << 20
         self.cache_version = None
         self.planes = lib.az_planes()
         self.check(lib.az_settings(self.pool, cpuct, fpu))
@@ -102,12 +108,20 @@ class Engine:
                 row = np.empty(MOVES, np.int32)
                 self.check(lib.az_canonical_moves(t, m, ptr(row)))
                 self.canonical[t, m] = row
+        self.pinned = False
+        self.allocate(0)
+        self.inflight = {}  # group -> (rows, queued evaluation)
+        self.net, self.inference = None, {}
         self.stats = dict(cache_hits=0, unique_evaluations=0, waves=0, leaves=0, forward_seconds=0.0, search_seconds=0.0)
 
     def close(self):
-        if getattr(self, 'pool', None):
-            self.lib.az_destroy(self.pool)
-            self.pool = None
+        if getattr(self, 'background', None):
+            self.background.shutdown()
+            self.background = None
+        for name in ('pool', 'opponents'):
+            if getattr(self, name, None):
+                self.lib.az_destroy(getattr(self, name))
+                setattr(self, name, None)
 
     def __del__(self):
         self.close()
@@ -138,9 +152,20 @@ class Engine:
         return int(out[0]), int(out[1])
 
     def advance(self, position, move, tree=-1):
-        out = np.empty(3, np.uint64)
-        self.check(self.lib.az_advance(self.pool, tree, ptr(np.asarray(position, np.uint64)), move, ptr(out)))
-        return tuple(int(v) for v in out)
+        return tuple(self.advance_many([tree], [position], [move])[0])
+
+    def advance_many(self, trees, positions, moves):
+        """Play one move per position (trees >= 0 also move their root and history); returns new positions."""
+        out = np.empty((len(moves), 3), np.uint64)
+        self.check(self.lib.az_advance(self.pool, len(moves), ptr(np.asarray(trees, np.int32)),
+                                       ptr(np.asarray(positions, np.uint64)), ptr(np.asarray(moves, np.int32)), ptr(out)))
+        return out.tolist()
+
+    def history(self, tree, history):
+        """Register a game's {position: occurrences} for tree `tree`; `advance` keeps it current."""
+        keys = np.asarray(list(history), np.uint64).reshape(-1, 3)
+        counts = np.asarray(list(history.values()), np.int32)
+        self.check(self.lib.az_history(self.pool, tree, ptr(keys), ptr(counts), len(counts)))
 
     def drop(self, tree):
         self.check(self.lib.az_drop(self.pool, tree))
@@ -149,12 +174,18 @@ class Engine:
         self.check(self.lib.az_clear(self.pool))
 
     def negamax(self, positions, nodes=2000):
+        """Negamax moves; `nodes` is one budget or one per position."""
         if not positions:
             return []
         packed = np.asarray(positions, np.uint64).reshape(-1, 3)
+        budgets = np.broadcast_to(np.asarray(nodes, np.int32), len(positions)).copy()
         out = np.empty((len(positions), 3), np.int64)
-        self.check(self.lib.az_negamax(self.pool, ptr(packed), len(positions), nodes, ptr(out)))
+        self.check(self.lib.az_negamax(self.opponents, ptr(packed), len(positions), ptr(budgets), ptr(out)))
         return out[:, 0].tolist()
+
+    def negamax_async(self, positions, nodes):
+        """`negamax` on a background thread; returns a future of the moves."""
+        return self.background.submit(self.negamax, positions, nodes)
 
     def features(self, positions, repetitions, remaining, mirror):
         n = len(positions)
@@ -165,76 +196,143 @@ class Engine:
             ptr(np.ascontiguousarray(mirror, np.uint8)), n, ptr(out)))
         return out
 
-    def search(self, model, jobs, simulations, device):
-        """jobs: dicts with tree, position, history {position: count}, ply, max_plies, noise (optional).
+    def clear_cache(self):
+        self.check(self.lib.az_cache_clear(self.pool))
 
-        Returns real-move visit distributions [n, 209] and root values (side to move)."""
-        lib = self.lib
+    def prepare(self, model, device):
+        """Start a new set of searches; reset the evaluation cache if the network changed."""
         # BatchNorm buffers also change during training. Never share values between
-        # networks or optimizer generations; key by the complete feature tensor.
+        # networks or optimizer generations.
         version = (model, tuple(t._version for t in model.parameters()),
                    tuple(t._version for t in model.buffers()))
         if version != self.cache_version:
-            self.cache.clear()
+            self.clear_cache()
             self.cache_version = version
-        self.check(lib.az_start(self.pool))
-        for job in jobs:
-            history = list(job['history'].items())
-            keys = np.asarray([k for k, _ in history], np.uint64).reshape(-1, 3)
-            counts = np.asarray([c for _, c in history], np.int32)
-            noise = np.asarray(job.get('noise') or [], np.float64)
-            self.check(lib.az_begin(self.pool, job['tree'], ptr(np.asarray(job['position'], np.uint64)), ptr(keys),
-                                    ptr(counts), len(history), job['ply'], job['max_plies'], simulations,
-                                    ptr(noise), len(noise)))
-        n = len(jobs)
-        features = np.empty((n, self.planes, 9, 9), np.float32)
-        legal = np.empty((n, 136), np.int32)
-        counts = np.empty(n, np.int32)
-        indices = np.empty(n, np.int32)
-        arange = torch.arange(136)[None, :]
-        while True:
-            start = time.perf_counter()
-            k = self.check(lib.az_wave(self.pool, ptr(features), ptr(legal), ptr(counts), ptr(indices)))
-            self.stats['search_seconds'] += time.perf_counter() - start
-            if not k:
-                break
-            start = time.perf_counter()
-            if self.cache_limit == 0:
-                logits, values = infer(model, features[:k], device)
-                self.stats['unique_evaluations'] += k
-            else:
-                keys = [hashlib.blake2b(memoryview(features[i]), digest_size=32).digest() for i in range(k)]
-                missing = {}
-                for i, key in enumerate(keys):
-                    if key not in self.cache:
-                        missing.setdefault(key, i)
-                fresh = {}
-                if missing:
-                    new_logits, new_values = infer(model, features[list(missing.values())], device)
-                    arrays, scalars = new_logits.numpy(), new_values.numpy()
-                    fresh = {key: (arrays[i].copy(), scalars[i]) for i, key in enumerate(missing)}
-                rows = [fresh[key] if key in fresh else self.cache[key] for key in keys]
-                logits = torch.from_numpy(np.stack([row[0] for row in rows]))
-                values = torch.from_numpy(np.asarray([row[1] for row in rows], np.float32))
-                self.stats['cache_hits'] += k - len(missing)
-                self.stats['unique_evaluations'] += len(missing)
-                self.cache.update(fresh)
-                while len(self.cache) > self.cache_limit:
-                    self.cache.popitem(last=False)
-            selected = logits.gather(1, torch.from_numpy(legal[:k]).long())
-            selected.masked_fill_(arange >= torch.from_numpy(counts[:k])[:, None], -torch.inf)
-            probabilities = np.ascontiguousarray(selected.softmax(1).numpy())
-            values = np.ascontiguousarray(values.numpy())
-            self.stats['forward_seconds'] += time.perf_counter() - start
-            self.stats['waves'] += 1
-            self.stats['leaves'] += k
-            start = time.perf_counter()
-            self.check(lib.az_evaluate(self.pool, ptr(probabilities), ptr(values), ptr(indices), k))
-            self.stats['search_seconds'] += time.perf_counter() - start
-        policies = np.empty((n, MOVES), np.float32)
-        roots = np.empty(n, np.float32)
-        self.check(lib.az_policy(self.pool, ptr(policies), ptr(roots)))
+            self.net = self.inference_net(model) if device == 'cuda' else model
+        if self.pinned != (device == 'cuda'):
+            self.pinned = device == 'cuda'
+            self.allocate(0)
+        self.check(self.lib.az_cache(self.pool, self.cache_limit))
+        self.check(self.lib.az_start(self.pool))
+
+    def inference_net(self, model):
+        """Compiled search copy of `model`: BatchNorm folded into the convolutions, bf16 channels-last weights,
+        replayed as CUDA graphs. One copy per architecture; later networks are loaded into it in place."""
+        net = copy.deepcopy(model).eval()
+        for parent in net.modules():
+            names = list(parent._modules)
+            for a, b in zip(names, names[1:]):
+                if isinstance(parent._modules[a], nn.Conv2d) and isinstance(parent._modules[b], nn.BatchNorm2d):
+                    parent._modules[a] = torch.nn.utils.fusion.fuse_conv_bn_eval(parent._modules[a], parent._modules[b])
+                    parent._modules[b] = nn.Identity()
+        net = net.to(torch.bfloat16, memory_format=torch.channels_last)
+        key = json.dumps(model.config, sort_keys=True)
+        if key not in self.inference:
+            self.inference[key] = (net, Graphs(torch.compile(net, dynamic=True)))
+        else:
+            with torch.no_grad():
+                self.inference[key][0].load_state_dict(net.state_dict())
+        return self.inference[key][1]
+
+    def begin(self, job, simulations, group=0):
+        """Queue one search in a wave group; returns its slot. The job's tree needs a registered `history`."""
+        seed = job.get('seed')
+        slot = self.check(self.lib.az_begin(self.pool, job['tree'], ptr(np.asarray(job['position'], np.uint64)),
+                                            job['ply'], job['max_plies'], simulations, seed or 0, seed is not None, group))
+        if slot >= self.capacity:
+            self.allocate(2 * slot + 2)
+        return slot
+
+    def allocate(self, capacity):
+        """Per search group: feature, legal-move and count rows for the next wave (pinned on CUDA).
+        A batch already queued on the device keeps its old buffers alive until collected."""
+        self.capacity = capacity
+        shapes = (((capacity, self.planes, 9, 9), torch.float32), ((capacity, 136), torch.int32), ((capacity,), torch.int32))
+        self.buffers = [tuple(torch.empty(shape, dtype=dtype, pin_memory=self.pinned).numpy() for shape, dtype in shapes)
+                        for _ in range(2)]
+
+    def launch(self, group, device):
+        """Advance every search of `group` to its next uncached leaf and queue those leaves on the
+        device without waiting. Returns the number of rows (0 once the group has nothing to evaluate)."""
+        assert group not in self.inflight
+        features, legal, counts = self.buffers[group]
+        start = time.perf_counter()
+        k = self.check(self.lib.az_wave(self.pool, group, ptr(features), ptr(legal), ptr(counts)))
+        if k:
+            self.inflight[group] = (k, priors(self.net, features[:k], legal[:k], counts[:k], device))
+        self.stats['search_seconds'] += time.perf_counter() - start
+        return k
+
+    def collect(self, group):
+        """Wait for `group`'s queued evaluations and back them up."""
+        k, (probabilities, values, done) = self.inflight.pop(group)
+        start = time.perf_counter()
+        if done is not None:
+            done.synchronize()
+        self.stats['forward_seconds'] += time.perf_counter() - start
+        start = time.perf_counter()
+        self.check(self.lib.az_evaluate(self.pool, group, ptr(probabilities), ptr(values), k))
+        self.stats['search_seconds'] += time.perf_counter() - start
+        out = np.empty(4, np.int64)
+        self.check(self.lib.az_stats(self.pool, ptr(out)))
+        hits, duplicates, unique, waves = out.tolist()
+        self.stats.update(cache_hits=hits + duplicates, unique_evaluations=unique, waves=waves,
+                          leaves=hits + duplicates + unique)
+
+    def step(self, device):
+        """One synchronous wave of group 0; returns its row count (0 once every search is finished)."""
+        k = self.launch(0, device)
+        if k:
+            self.collect(0)
+        return k
+
+    def finished(self):
+        out = np.empty(self.capacity, np.int32)
+        return out[:self.check(self.lib.az_finished(self.pool, ptr(out)))].tolist()
+
+    def take(self, slots):
+        """Root visit distributions [n, 209] and root values of finished searches; frees the slots."""
+        policies, roots = np.empty((len(slots), MOVES), np.float32), np.empty(len(slots), np.float32)
+        self.check(self.lib.az_take(self.pool, ptr(np.asarray(slots, np.int32)), len(slots), ptr(policies), ptr(roots)))
         return policies, roots
+
+    def search(self, model, jobs, simulations, device):
+        """jobs: dicts with tree, position, history {position: count}, ply, max_plies, seed (optional:
+        Dirichlet root noise). Returns real-move visit distributions [n, 209] and root values (side to move)."""
+        self.prepare(model, device)
+        for job in jobs:
+            self.history(job['tree'], job['history'])
+        slots = [self.begin(job, simulations) for job in jobs]
+        while self.step(device):
+            pass
+        return self.take(slots)
+
+
+class Graphs:
+    """CUDA graph replay of a network, one graph per batch size. Queueing a batch then costs
+    ~0.5 ms of CPU instead of ~3 ms of kernel launches (L4, 128x10). Graphs replay in stream
+    order and share one memory pool; each output is overwritten by the next replay of its size."""
+
+    def __init__(self, net):
+        self.net, self.graphs, self.pool = net, {}, torch.cuda.graph_pool_handle()
+
+    def __call__(self, x):
+        if len(x) not in self.graphs:
+            static = torch.zeros_like(x)
+            stream = torch.cuda.Stream()
+            stream.wait_stream(torch.cuda.current_stream())
+            with torch.cuda.stream(stream):
+                for _ in range(2):
+                    self.net(static)
+            torch.cuda.current_stream().wait_stream(stream)
+            graph = torch.cuda.CUDAGraph()
+            with torch.cuda.graph(graph, pool=self.pool):
+                out = self.net(static)
+            self.graphs[len(x)] = graph, static, out
+        graph, static, out = self.graphs[len(x)]
+        static.copy_(x)
+        graph.replay()
+        return out
 
 
 # ---------------------------------------------------------------- network
@@ -279,6 +377,34 @@ class Net(nn.Module):
         p = self.policy_head(h)
         logits = torch.cat((p[:, 0].flatten(1), p[:, 1, :8, :8].flatten(1), p[:, 2, :8, :8].flatten(1)), 1)
         return logits, self.value_head(h).squeeze(1).tanh()
+
+
+@torch.inference_mode()
+def priors(net, features, legal, counts, device):
+    """Softmax over each row's legal canonical moves (in native edge order), plus values.
+
+    On CUDA `net` is an `Engine.inference_net` copy and the work is only queued: the
+    returned pinned arrays are filled once the returned event completes (else None)."""
+    n = len(features)
+    cuda = device == 'cuda'
+    x = torch.from_numpy(features).to(device, non_blocking=True)
+    if cuda:
+        if n % 64:
+            # Every new batch shape costs cuDNN a fresh kernel plan (~3x a cached one on an
+            # L4); padding keeps the shapes to a few dozen. Rows are independent in eval mode.
+            x = torch.cat((x, x.new_zeros((64 - n % 64, *x.shape[1:]))))
+        x = x.to(torch.bfloat16, memory_format=torch.channels_last)
+    logits, values = net(x)
+    logits = logits[:n].float().gather(1, torch.from_numpy(legal).to(device, non_blocking=True).long())
+    mask = torch.arange(136, device=device)[None, :] >= torch.from_numpy(counts).to(device, non_blocking=True)[:, None]
+    probabilities = logits.masked_fill(mask, -torch.inf).softmax(1)
+    values = values[:n].float()
+    if not cuda:
+        return np.ascontiguousarray(probabilities.cpu().numpy()), np.ascontiguousarray(values.cpu().numpy()), None
+    host = [torch.empty(t.shape, pin_memory=True).copy_(t, non_blocking=True) for t in (probabilities, values)]
+    done = torch.cuda.Event()
+    done.record()
+    return host[0].numpy(), host[1].numpy(), done
 
 
 @torch.inference_mode()
@@ -456,82 +582,163 @@ class Game:
 
 
 def play(engine, model, games, device, simulations, max_plies=100, noise=False, temperature_plies=0,
-         rng=None, progress=None, resume=False):
-    """Advance all games to completion. MCTS turns are batched per network; negamax turns use the C++ thread pool."""
+         rng=None, progress=None, resume=False, checkpoint=None, spawn=None, until=None):
+    """Advance all games to completion; negamax turns use the C++ thread pool.
+
+    With a single network, every game starts its next search as soon as its own move
+    is played, so short searches never wait for the slowest game. Negamax replies run
+    on a background thread and are applied one loop pass later. Each game draws
+    noise and temperature samples from its own stream, so results do not depend on
+    this scheduling. `progress(done, total)` is called only when no search is in
+    flight: whenever `checkpoint()` returns true, or after every move round when
+    `checkpoint` is omitted.
+
+    `spawn(ended)` may return a game to start in place of one that ended; it is
+    appended to `games`. Once `until()` is true no new search starts, and play
+    returns when none is in flight, leaving unfinished games resumable."""
     rng = rng or random.Random(0)
     active = [g for g in games if g.result is None]
     for game in ([] if resume else active):
         for tree in game.trees():
             engine.drop(tree)
+    for g in active:
+        if getattr(g, 'rng', None) is None:
+            g.rng = random.Random(rng.getrandbits(64))
+        for tree in g.trees():
+            engine.history(tree, g.history)
 
     def network(g):
         player = g.to_move()
         return model if isinstance(player, str) else player if isinstance(player, nn.Module) else None
-    while active:
-        groups = {}
-        for g in active:
-            if network(g) is not None:
-                groups.setdefault(id(network(g)), []).append(g)
-        rest = [g for g in active if network(g) is None]
-        chosen = {}
-        for mcts in groups.values():
-            jobs = []
-            for g in mcts:
-                job = dict(tree=g.tree(), position=g.position, history=g.history, ply=g.ply, max_plies=max_plies)
-                if noise:
-                    legal = engine.legal(g.position)
-                    sample = [rng.gammavariate(0.3, 1) for _ in legal]
-                    total = sum(sample)
-                    job['noise'] = [v / total for v in sample]
-                jobs.append(job)
-            policies, roots = engine.search(network(mcts[0]), jobs, simulations, device)
-            for g, pi, root in zip(mcts, policies, roots):
-                if g.ply < temperature_plies:
-                    move = rng.choices(range(MOVES), weights=pi.tolist())[0]
-                else:
-                    move = int(pi.argmax())
-                if g.record:
-                    t = turn(g.position)
-                    canonical = np.zeros(MOVES, np.float32)
-                    canonical[engine.canonical[t, 0]] = pi
-                    g.samples.append([g.position, g.history.get(g.position, 1), (max_plies - g.ply) / max_plies,
-                                      canonical, t])
-                chosen[g.id] = move
-        by_nodes = {}
-        for g in rest:
-            by_nodes.setdefault(g.to_move()[1], []).append(g)
-        for nodes, group in by_nodes.items():
-            for g, move in zip(group, engine.negamax([g.position for g in group], nodes)):
-                if g.record:
-                    g.samples.append([g.position, g.history.get(g.position, 1), (max_plies - g.ply) / max_plies,
-                                      None, turn(g.position)])
-                chosen[g.id] = move
-        still = []
-        for g in active:
-            move = chosen[g.id]
-            before = g.position
-            g.position = engine.advance(before, move, g.tree())
+
+    def job(g):
+        job = dict(tree=g.tree(), position=g.position, ply=g.ply, max_plies=max_plies)
+        if noise:
+            job['seed'] = g.rng.getrandbits(64)
+        return job
+
+    def record(g, policy):
+        if g.record:
+            g.samples.append([g.position, g.history.get(g.position, 1), (max_plies - g.ply) / max_plies,
+                              policy, turn(g.position)])
+
+    def searched(g, pi):
+        if g.ply < temperature_plies:
+            move = int(np.searchsorted(np.cumsum(pi, dtype=np.float64), g.rng.random() * float(pi.sum(dtype=np.float64)),
+                                       side='right'))
+        else:
+            move = int(pi.argmax())
+        # Canonical and real IDs map onto each other by an involution.
+        record(g, pi[engine.canonical[turn(g.position), 0]])
+        return move
+
+    def advance(moved):
+        """Play each (game, move); returns the games still running."""
+        if not moved:
+            return []
+        after = engine.advance_many([g.tree() for g, _ in moved], [g.position for g, _ in moved], [m for _, m in moved])
+        running = []
+        for (g, move), position in zip(moved, after):
             if g.split:
-                engine.advance(before, move, g.tree(turn(before) ^ 1))
+                engine.advance(g.position, move, g.tree(turn(g.position) ^ 1))
+            g.position = position = tuple(position)
             g.moves.append(move)
             g.ply += 1
-            g.history[g.position] = g.history.get(g.position, 0) + 1
-            w = winner(g.position)
+            g.history[position] = g.history.get(position, 0) + 1
+            w = winner(position)
             if w != -1:
                 g.result, g.reason = w, 'goal'
-            elif g.history[g.position] >= 3:
+            elif g.history[position] >= 3:
                 g.result, g.reason = -1, 'repetition'
             elif g.ply >= max_plies:
                 g.result, g.reason = -1, 'plies'
             if g.result is None:
-                still.append(g)
+                running.append(g)
             else:
                 for tree in g.trees():
                     engine.drop(tree)
-        active = still
-        if progress:
-            progress(len(games) - len(active), len(games))
-    return games
+        return running
+
+    def replied(waiting, moves):
+        """Apply negamax moves; returns the (game, move) pairs to play."""
+        for g in waiting:
+            record(g, None)
+        return list(zip(waiting, moves))
+
+    def done():
+        return sum(g.result is not None for g in games)
+
+    networks = {id(n): n for g in active for n in (model if isinstance(p, str) else p for p in g.players)
+                if isinstance(n, nn.Module)}
+    if len(networks) > 1:
+        assert spawn is None and until is None
+        # Different networks cannot share a batch; advance all games one move at a time.
+        while active:
+            groups = {}
+            for g in active:
+                if network(g) is not None:
+                    groups.setdefault(id(network(g)), []).append(g)
+            waiting = [g for g in active if network(g) is None]
+            still = advance(replied(waiting, engine.negamax([g.position for g in waiting], [g.to_move()[1] for g in waiting])))
+            for group in groups.values():
+                policies, _ = engine.search(network(group[0]), [job(g) | dict(history=g.history) for g in group],
+                                            simulations, device)
+                still += advance([(g, searched(g, pi)) for g, pi in zip(group, policies)])
+            order = {g.id: i for i, g in enumerate(games)}
+            active = sorted(still, key=lambda g: order[g.id])
+            if progress:
+                progress(done(), len(games))
+        return
+
+    if checkpoint is None:
+        checkpoint = (lambda: True) if progress else (lambda: False)
+    net = next(iter(networks.values()), None)
+    if net is not None:
+        engine.prepare(net, device)
+    # Two search groups alternate: while one group's batch is on the device, the other
+    # group's evaluations are backed up and its next leaves selected.
+    idle, slots, size, draining, stopping, group = active, {}, [0, 0], False, False, 0
+    replies = None  # (games, future moves) of negamax turns in flight
+    while idle or slots or replies:
+        if group in engine.inflight:
+            engine.collect(group)
+        finished = engine.finished()
+        moved = []
+        for slot, pi in zip(finished, engine.take(finished)[0]):
+            g, member = slots.pop(slot)
+            size[member] -= 1
+            moved.append((g, searched(g, pi)))
+        if replies:
+            moved += replied(replies[0], replies[1].result())
+            replies = None
+        idle += advance(moved)
+        if spawn:
+            for g, _ in moved:
+                if g.result is not None and (new := spawn(g)) is not None:
+                    new.rng = random.Random(rng.getrandbits(64))
+                    engine.history(new.tree(), new.history)
+                    games.append(new)
+                    idle.append(new)
+        if not (draining or stopping):
+            waiting = [g for g in idle if network(g) is None]
+            if waiting:
+                replies = waiting, engine.negamax_async([g.position for g in waiting], [g.to_move()[1] for g in waiting])
+            for g in idle:
+                if network(g) is not None:
+                    member = int(size[1] < size[0])
+                    slots[engine.begin(job(g), simulations, member)] = g, member
+                    size[member] += 1
+            idle = []
+        engine.launch(group, device)
+        group ^= 1
+        draining = draining or checkpoint()
+        stopping = stopping or (until is not None and until())
+        if stopping and not slots and not replies:
+            return
+        if draining and not slots and not replies:
+            draining = False
+            if progress:
+                progress(done(), len(games))
 
 
 def samples(game):
@@ -672,6 +879,8 @@ def cmd_pretrain(args):
     engine = Engine(args.workers)
     data = Replay.load(args.data)
     model = Net(engine.planes, args.channels, args.blocks, args.drop_planes).to(device)
+    if device == 'cuda':
+        model.to(memory_format=torch.channels_last)
     optimizer = new_optimizer(model, args.lr)
     steps_per_epoch = data.size // args.batch_size
     total = int(steps_per_epoch * args.epochs)
@@ -772,6 +981,9 @@ def cmd_rl(args):
                 replay.add(data.position[i], data.repetitions[i], data.remaining[i],
                            data.policy[i] if data.has_policy[i] else None, data.value[i])
         (out / 'config.json').write_text(json.dumps(settings(args), indent=1))
+    if device == 'cuda':
+        # About 25% faster training steps on an L4; parameters keep their identity.
+        model.to(memory_format=torch.channels_last)
     for group in optimizer.param_groups:
         group['lr'] = args.lr
     rng = random.Random(f'rl:{args.seed}:{iteration}')
@@ -782,48 +994,65 @@ def cmd_rl(args):
         torch.set_rng_state(saved['torch_rng'])
         if device == 'cuda' and saved.get('cuda_rng') is not None:
             torch.cuda.set_rng_state_all(saved['cuda_rng'])
-    # Persist the starting generation too: interruption during the first rollout
-    # replays that iteration with the same weights, replay and random streams.
-    if not (state_path.exists() and "saved" in locals() and saved.get("games") is not None):
+    # Games of the next iteration: carried over from the last one, or restored mid-iteration.
+    games = None
+    if state_path.exists() and saved.get('games') is not None:
+        games = []
+        for attributes in saved['games']:
+            game = Game.__new__(Game)
+            game.__dict__.update(attributes)
+            games.append(game)
+        engine.restore(saved['trees'])
+    else:
+        # Persist the starting generation too: interruption during the first rollout
+        # replays that iteration with the same weights, replay and random streams.
         save_rl_state(state_path, model, optimizer, replay, iteration, metrics, args, rng, nprng)
-    inflight = saved.get("games") if state_path.exists() and "saved" in locals() else None
+
+    def new_game(lane):
+        """Lanes keep their opponent type, so every batch of games has the configured negamax share."""
+        position, history = random_opening(engine, rng, rng.randint(0, args.max_opening))
+        if lane < args.games * args.negamax_fraction:
+            learner = lane % 2
+            nodes = rng.choice(args.negamax_nodes)
+            players = ['mcts', ('negamax', nodes)] if learner == 0 else [('negamax', nodes), 'mcts']
+        else:
+            learner, players = -1, ['mcts', 'mcts']
+        g = Game(lane, position, history, players)
+        g.learner = learner
+        return g
+
+    last_save = [time.monotonic()]
     while iteration < args.iterations:
         iteration += 1
         t0 = time.time()
-        games = []
-        for i in range(args.games):
-            position, history = random_opening(engine, rng, rng.randint(0, args.max_opening))
-            if i < args.games * args.negamax_fraction:
-                learner = i % 2
-                nodes = rng.choice(args.negamax_nodes)
-                players = ['mcts', ('negamax', nodes)] if learner == 0 else [('negamax', nodes), 'mcts']
-            else:
-                learner, players = -1, ['mcts', 'mcts']
-            g = Game(i, position, history, players)
-            g.learner = learner
-            games.append(g)
-        if inflight is not None:
-            games = []
-            for attributes in inflight:
-                game = Game.__new__(Game)
-                game.__dict__.update(attributes)
-                games.append(game)
-            engine.restore(saved['trees'])
-            rng.setstate(saved['rng'])
+        if games is None:
+            games = [new_game(i) for i in range(args.games)]
         last = [0]
-        last_save = [time.monotonic()]
+
+        def due():
+            return time.monotonic() - last_save[0] >= args.checkpoint_seconds
+
+        def finished():
+            return sum(g.result is not None for g in games)
 
         def progress(done, total):
-            if time.monotonic() - last_save[0] >= args.checkpoint_seconds:
+            if due():
                 save_rl_state(state_path, model, optimizer, replay, iteration - 1, metrics, args, rng, nprng,
                               games=games, engine=engine)
                 last_save[0] = time.monotonic()
-            if done - last[0] >= max(1, total // 8):
+            if done - last[0] >= max(1, args.games // 8):
                 last[0] = done
-                print(f'  iter {iteration}: {done}/{total} games done, {time.time() - t0:.0f}s', flush=True)
+                print(f'  iter {iteration}: {done}/{args.games} games done, {time.time() - t0:.0f}s', flush=True)
+        # An iteration ends once `--games` games have finished. Every game that ends is
+        # replaced at once, so batches stay full; games still running carry over.
         play(engine, model, games, device, args.simulations, args.max_plies, noise=True,
-             temperature_plies=args.temperature_plies, rng=rng, progress=progress, resume=inflight is not None)
-        inflight = None
+             temperature_plies=args.temperature_plies, rng=rng, progress=progress, resume=True,
+             checkpoint=due, spawn=lambda ended: new_game(ended.id), until=lambda: finished() >= args.games)
+        carried = [g for g in games if g.result is None]
+        games = [g for g in games if g.result is not None]
+        for g in carried:
+            for tree in g.trees():
+                engine.drop(tree)
         rows = 0
         for g in games:
             for row in samples(g):
@@ -834,7 +1063,8 @@ def cmd_rl(args):
         losses = train_steps(model, optimizer, replay, engine, steps, args.batch_size, device, nprng)
         vs = [g for g in games if g.learner >= 0]
         selfplay = [g for g in games if g.learner < 0]
-        row = dict(iteration=iteration, games=len(games), positions=rows, replay=replay.size, steps=steps, **losses,
+        row = dict(iteration=iteration, games=len(games), carried=len(carried), positions=rows, replay=replay.size,
+                   steps=steps, **losses,
                    train_wins=sum(g.result == g.learner for g in vs), train_vs_games=len(vs),
                    train_cutoffs=sum(g.result == -1 for g in games),
                    selfplay_first_wins=sum(g.result == 0 for g in selfplay),
@@ -846,8 +1076,11 @@ def cmd_rl(args):
             row['eval_seconds'] = time.time() - t1
         metrics.append(row)
         print(json.dumps(row), flush=True)
+        games = carried
         save_model(model, out / 'model.pt', iteration=iteration)
-        save_rl_state(state_path, model, optimizer, replay, iteration, metrics, args, rng, nprng)
+        save_rl_state(state_path, model, optimizer, replay, iteration, metrics, args, rng, nprng,
+                      games=games, engine=engine)
+        last_save[0] = time.monotonic()
         (out / 'metrics.json').write_text(json.dumps(metrics, indent=1))
 
 

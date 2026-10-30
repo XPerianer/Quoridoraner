@@ -1,0 +1,107 @@
+{
+ "info": {
+  "gpu": "NVIDIA L4",
+  "cpus": 12,
+  "torch": "2.11.0+cu130",
+  "machine": "Linux-6.6.159+-x86_64-with-glibc2.39",
+  "params": 3188012
+ },
+ "results": [
+  {
+   "kind": "inference",
+   "batch": 1024,
+   "evals_per_second": 40510.6203937532
+  },
+  {
+   "kind": "selfplay",
+   "games": 1024,
+   "simulations": 200,
+   "cache_limit": 0,
+   "max_plies": 100,
+   "seconds": 133.647846698761,
+   "games_per_hour": 27582.935984812808,
+   "plies": 61032,
+   "moves_per_second": 456.662800842311,
+   "mean_plies": 59.6015625,
+   "cutoffs": 15,
+   "stats": {
+    "cache_hits": 0,
+    "unique_evaluations": 2029908,
+    "waves": 12798,
+    "leaves": 2029908,
+    "forward_seconds": 106.67341713188671,
+    "search_seconds": 15.881676144897028
+   }
+  },
+  {
+   "kind": "selfplay",
+   "games": 1024,
+   "simulations": 200,
+   "cache_limit": 1048576,
+   "max_plies": 100,
+   "seconds": 149.65795946121216,
+   "games_per_hour": 24632.168000095102,
+   "plies": 61386,
+   "moves_per_second": 410.1753105614795,
+   "mean_plies": 59.947265625,
+   "cutoffs": 17,
+   "stats": {
+    "cache_hits": 606625,
+    "unique_evaluations": 1447919,
+    "waves": 12601,
+    "leaves": 2054544,
+    "forward_seconds": 122.84218856600455,
+    "search_seconds": 15.77707583900883
+   }
+  },
+  {
+   "kind": "selfplay",
+   "games": 1024,
+   "simulations": 800,
+   "cache_limit": 0,
+   "max_plies": 100,
+   "seconds": 505.30670642852783,
+   "games_per_hour": 7295.371213367057,
+   "plies": 61958,
+   "moves_per_second": 122.61464020122506,
+   "mean_plies": 60.505859375,
+   "cutoffs": 20,
+   "stats": {
+    "cache_hits": 0,
+    "unique_evaluations": 9677818,
+    "waves": 50912,
+    "leaves": 9677818,
+    "forward_seconds": 408.20089190594354,
+    "search_seconds": 77.41082771189213
+   }
+  },
+  {
+   "kind": "selfplay",
+   "games": 1024,
+   "simulations": 800,
+   "cache_limit": 1048576,
+   "max_plies": 100,
+   "seconds": 621.7549805641174,
+   "games_per_hour": 5929.023675299448,
+   "plies": 62824,
+   "moves_per_second": 101.04301849419826,
+   "mean_plies": 61.3515625,
+   "cutoffs": 22,
+   "stats": {
+    "cache_hits": 3223655,
+    "unique_evaluations": 6370562,
+    "waves": 50325,
+    "leaves": 9594217,
+    "forward_seconds": 521.6781685599326,
+    "search_seconds": 79.84276351712197
+   }
+  },
+  {
+   "kind": "train",
+   "steps": 300,
+   "batch": 1024,
+   "seconds": 24.813924197999768,
+   "seconds_per_1000_steps": 82.71308065999924
+  }
+ ]
+}
