@@ -208,6 +208,16 @@ Infrastructure notes:
 - Total cost: about 14 units, of which about 7 were lost with the first A100 VM.
 - Artifacts are in `training/runs/az/opponents/`: `models/` and the per-arm logs/metrics.
 
+### Gumbel AlphaZero vs PUCT, budget-matched (2026-10-30)
+
+Gumbel search (`--search gumbel`, see `GUMBEL_IMPLEMENTATION_GUIDE.md`) was compared with the PUCT pipeline
+for 75 minutes of self-play and training per arm on an L4, from the A100 pretrained model with the
+`colab_az.sh` settings: PUCT at 200 simulations, Gumbel root-only and full Gumbel at 64 simulations. All
+three arms ended level head-to-head (0.485–0.500 over 200 games). With search, the PUCT-trained model scored
+highest against negamax (0.928 vs 2000 and 0.893 vs 32000 at 128 simulations, against 0.883–0.918 and
+0.825–0.840). **The final run keeps PUCT.** Details, caveats and data:
+[measurements/gumbel-vs-puct-20261030](measurements/gumbel-vs-puct-20261030/README.md).
+
 ## Reproduce
 
 ```sh

@@ -68,8 +68,13 @@ def with_walls(position, walls):
     return (position[0], position[1], p | (walls << 14) | (walls << 18))
 
 
+# Search settings saved with runs; checkpoints without them resolve to PUCT.
+SEARCH_DEFAULTS = dict(search='puct', gumbel_interior='puct', gumbel_candidates=16, gumbel_scale=1.0,
+                       gumbel_value_scale=0.1, gumbel_maxvisit_init=50.0, gumbel_rescale_values=True)
+
+
 class Engine:
-    def __init__(self, workers=None, cpuct=1.5, fpu=0.25):
+    def __init__(self, workers=None, cpuct=1.5, fpu=0.25, **search):
         sources = [NATIVE / 'az.cpp', NATIVE / 'engine.hpp']
         if not LIBRARY.exists() or any(s.stat().st_mtime > LIBRARY.stat().st_mtime for s in sources):
             build()
@@ -78,14 +83,16 @@ class Engine:
         for name, (result, args) in {
             'az_snapshot': (I, [P, P, I]), 'az_restore': (I, [P, P, I]),
             'az_create': (P, [I]), 'az_destroy': (None, [P]), 'az_error': (C.c_char_p, []), 'az_planes': (I, []),
-            'az_settings': (I, [P, C.c_double, C.c_double]), 'az_clear': (I, [P]), 'az_drop': (I, [P, I]),
+            'az_settings': (I, [P, C.c_double, C.c_double, I, I, I, C.c_double, C.c_double, C.c_double, I]),
+            'az_clear': (I, [P]), 'az_drop': (I, [P, I]),
             'az_legal': (I, [P, P]), 'az_distances': (I, [P, P]), 'az_advance': (I, [P, I, P, P, P, P]),
             'az_history': (I, [P, I, P, P, I]),
             'az_features': (I, [P, P, P, P, P, I, P]), 'az_canonical_moves': (I, [I, I, P]),
             'az_start': (I, [P]), 'az_begin': (I, [P, I, P, I, I, I, C.c_uint64, I, I]),
             'az_wave': (I, [P, I, P, P, P]), 'az_evaluate': (I, [P, I, P, P, I]),
-            'az_finished': (I, [P, P]), 'az_take': (I, [P, P, I, P, P]), 'az_cache': (I, [P, C.c_int64]),
+            'az_finished': (I, [P, P]), 'az_take': (I, [P, P, I, P, P, P]), 'az_cache': (I, [P, C.c_int64]),
             'az_cache_clear': (I, [P]), 'az_stats': (I, [P, P]), 'az_negamax': (I, [P, P, I, P, P]),
+            'az_considered_visits': (I, [I, I, P]), 'az_root_visits': (I, [P, I, P]),
         }.items():
             fn = getattr(lib, name)
             fn.restype, fn.argtypes = result, args
@@ -100,7 +107,7 @@ class Engine:
         self.cache_limit = 1 << 20
         self.cache_version = None
         self.planes = lib.az_planes()
-        self.check(lib.az_settings(self.pool, cpuct, fpu))
+        self.configure(cpuct, fpu, **search)
         # canonical[turn][mirror][real move] -> canonical move; each map is an involution.
         self.canonical = np.zeros((2, 2, MOVES), np.int64)
         for t in range(2):
@@ -113,6 +120,19 @@ class Engine:
         self.inflight = {}  # group -> (rows, queued evaluation)
         self.net, self.inference = None, {}
         self.stats = dict(cache_hits=0, unique_evaluations=0, waves=0, leaves=0, forward_seconds=0.0, search_seconds=0.0)
+
+    def configure(self, cpuct=1.5, fpu=0.25, **search):
+        """PUCT (c_puct, FPU) or Gumbel search settings; keys and defaults as in SEARCH_DEFAULTS."""
+        unknown = set(search) - set(SEARCH_DEFAULTS)
+        if unknown:
+            raise ValueError(f'Unknown search settings {sorted(unknown)}')
+        s = self.search_settings = SEARCH_DEFAULTS | search
+        assert s['search'] in ('puct', 'gumbel') and s['gumbel_interior'] in ('puct', 'completed-q')
+        self.check(self.lib.az_settings(self.pool, cpuct, fpu, s['search'] == 'gumbel',
+                                        s['gumbel_interior'] == 'completed-q', s['gumbel_candidates'],
+                                        s['gumbel_scale'], s['gumbel_value_scale'], s['gumbel_maxvisit_init'],
+                                        bool(s['gumbel_rescale_values'])))
+        self.cpuct, self.fpu = cpuct, fpu
 
     def close(self):
         if getattr(self, 'background', None):
@@ -291,21 +311,34 @@ class Engine:
         return out[:self.check(self.lib.az_finished(self.pool, ptr(out)))].tolist()
 
     def take(self, slots):
-        """Root visit distributions [n, 209] and root values of finished searches; frees the slots."""
-        policies, roots = np.empty((len(slots), MOVES), np.float32), np.empty(len(slots), np.float32)
-        self.check(self.lib.az_take(self.pool, ptr(np.asarray(slots, np.int32)), len(slots), ptr(policies), ptr(roots)))
-        return policies, roots
+        """Policy targets [n, 209], root values and moves of finished searches; frees the slots.
 
-    def search(self, model, jobs, simulations, device):
+        PUCT: root visit distributions, moves -1 (the caller picks). Gumbel: improved policies over
+        all legal moves and the moves chosen by sequential halving."""
+        n = len(slots)
+        policies, roots, moves = np.empty((n, MOVES), np.float32), np.empty(n, np.float32), np.empty(n, np.int32)
+        self.check(self.lib.az_take(self.pool, ptr(np.asarray(slots, np.int32)), n, ptr(policies), ptr(roots),
+                                    ptr(moves)))
+        if n and self.search_settings['search'] == 'gumbel':
+            # Diagnostics: entropy of the improved policy targets.
+            p = policies.astype(np.float64)
+            self.stats['target_entropy'] = self.stats.get('target_entropy', 0.0) - float(
+                np.where(p > 0, p * np.log(np.where(p > 0, p, 1)), 0).sum())
+            self.stats['targets'] = self.stats.get('targets', 0) + n
+        return policies, roots, moves
+
+    def search(self, model, jobs, simulations, device, moves=False):
         """jobs: dicts with tree, position, history {position: count}, ply, max_plies, seed (optional:
-        Dirichlet root noise). Returns real-move visit distributions [n, 209] and root values (side to move)."""
+        Dirichlet root noise, or Gumbel noise). Returns real-move policy targets [n, 209] and root values
+        (side to move); with `moves`, also the chosen moves (-1 under PUCT: take the target's argmax)."""
         self.prepare(model, device)
         for job in jobs:
             self.history(job['tree'], job['history'])
         slots = [self.begin(job, simulations) for job in jobs]
         while self.step(device):
             pass
-        return self.take(slots)
+        out = self.take(slots)
+        return out if moves else out[:2]
 
 
 class Graphs:
@@ -381,7 +414,7 @@ class Net(nn.Module):
 
 @torch.inference_mode()
 def priors(net, features, legal, counts, device):
-    """Softmax over each row's legal canonical moves (in native edge order), plus values.
+    """Log-softmax over each row's legal canonical moves (in native edge order), plus values.
 
     On CUDA `net` is an `Engine.inference_net` copy and the work is only queued: the
     returned pinned arrays are filled once the returned event completes (else None)."""
@@ -397,7 +430,7 @@ def priors(net, features, legal, counts, device):
     logits, values = net(x)
     logits = logits[:n].float().gather(1, torch.from_numpy(legal).to(device, non_blocking=True).long())
     mask = torch.arange(136, device=device)[None, :] >= torch.from_numpy(counts).to(device, non_blocking=True)[:, None]
-    probabilities = logits.masked_fill(mask, -torch.inf).softmax(1)
+    probabilities = logits.masked_fill(mask, -torch.inf).log_softmax(1)
     values = values[:n].float()
     if not cuda:
         return np.ascontiguousarray(probabilities.cpu().numpy()), np.ascontiguousarray(values.cpu().numpy()), None
@@ -613,6 +646,7 @@ def play(engine, model, games, device, simulations, max_plies=100, noise=False, 
 
     def job(g):
         job = dict(tree=g.tree(), position=g.position, ply=g.ply, max_plies=max_plies)
+        # Under Gumbel search the seed draws the root Gumbels (Dirichlet noise is disabled).
         if noise:
             job['seed'] = g.rng.getrandbits(64)
         return job
@@ -622,8 +656,13 @@ def play(engine, model, games, device, simulations, max_plies=100, noise=False, 
             g.samples.append([g.position, g.history.get(g.position, 1), (max_plies - g.ply) / max_plies,
                               policy, turn(g.position)])
 
-    def searched(g, pi):
-        if g.ply < temperature_plies:
+    gumbel = engine.search_settings['search'] == 'gumbel'
+
+    def searched(g, pi, move=-1):
+        """Gumbel searches choose `move` themselves: never sample it from the target `pi`."""
+        if move >= 0:
+            pass
+        elif g.ply < temperature_plies and not gumbel:
             move = int(np.searchsorted(np.cumsum(pi, dtype=np.float64), g.rng.random() * float(pi.sum(dtype=np.float64)),
                                        side='right'))
         else:
@@ -681,9 +720,9 @@ def play(engine, model, games, device, simulations, max_plies=100, noise=False, 
             waiting = [g for g in active if network(g) is None]
             still = advance(replied(waiting, engine.negamax([g.position for g in waiting], [g.to_move()[1] for g in waiting])))
             for group in groups.values():
-                policies, _ = engine.search(network(group[0]), [job(g) | dict(history=g.history) for g in group],
-                                            simulations, device)
-                still += advance([(g, searched(g, pi)) for g, pi in zip(group, policies)])
+                policies, _, moves = engine.search(network(group[0]), [job(g) | dict(history=g.history) for g in group],
+                                                   simulations, device, moves=True)
+                still += advance([(g, searched(g, pi, m)) for g, pi, m in zip(group, policies, moves)])
             order = {g.id: i for i, g in enumerate(games)}
             active = sorted(still, key=lambda g: order[g.id])
             if progress:
@@ -704,10 +743,11 @@ def play(engine, model, games, device, simulations, max_plies=100, noise=False, 
             engine.collect(group)
         finished = engine.finished()
         moved = []
-        for slot, pi in zip(finished, engine.take(finished)[0]):
+        policies, _, chosen = engine.take(finished)
+        for slot, pi, m in zip(finished, policies, chosen):
             g, member = slots.pop(slot)
             size[member] -= 1
-            moved.append((g, searched(g, pi)))
+            moved.append((g, searched(g, pi, int(m))))
         if replies:
             moved += replied(replies[0], replies[1].result())
             replies = None
@@ -790,6 +830,14 @@ def head_to_head(engine, a, b, device, pairs, simulations, suite='heldout', seed
 
 def settings(args):
     return {k: v for k, v in vars(args).items() if k != 'fn'}
+
+
+def search_settings(args, mode=None):
+    """Engine search settings from parsed arguments; `mode` overrides --search (e.g. --eval-search)."""
+    out = {k: getattr(args, k) for k in SEARCH_DEFAULTS if hasattr(args, k)}
+    if mode:
+        out['search'] = mode
+    return out
 
 
 def cmd_gen(args):
@@ -942,7 +990,7 @@ def save_rl_state(path, model, optimizer, replay, iteration, metrics, args, rng,
 def cmd_rl(args):
     torch.manual_seed(args.seed)
     device = pick_device(args.device)
-    engine = Engine(args.workers, args.cpuct, args.fpu)
+    engine = Engine(args.workers, args.cpuct, args.fpu, **search_settings(args))
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
     state_path = out / 'state.pt'
@@ -952,7 +1000,8 @@ def cmd_rl(args):
         if 'args' in saved:
             if '--iterations' not in sys.argv:
                 args.iterations = saved['args']['iterations']
-            for key, value in saved['args'].items():
+            # Runs saved before Gumbel search existed used PUCT, whatever the command line says.
+            for key, value in (SEARCH_DEFAULTS | dict(eval_search='puct') | saved['args']).items():
                 if key not in ('fn', 'device', 'workers', 'out', 'iterations', 'checkpoint_seconds'):
                     setattr(args, key, value)
         optimizer = new_optimizer(model, args.lr)
@@ -963,7 +1012,7 @@ def cmd_rl(args):
             replay = Replay.load(out / 'replay.npz', args.replay)
         else:
             raise RuntimeError('Legacy checkpoint is missing replay.npz; cannot fully resume')
-        engine.check(engine.lib.az_settings(engine.pool, args.cpuct, args.fpu))
+        engine.configure(args.cpuct, args.fpu, **search_settings(args))
         print(f'resumed at iteration {iteration}', flush=True)
     else:
         if args.init:
@@ -1022,7 +1071,11 @@ def cmd_rl(args):
         return g
 
     last_save = [time.monotonic()]
-    while iteration < args.iterations:
+    def spent():
+        """Self-play and training seconds of completed iterations (evaluations excluded)."""
+        return sum(row['seconds'] for row in metrics)
+
+    while iteration < args.iterations and not (args.budget_minutes and spent() >= 60 * args.budget_minutes):
         iteration += 1
         t0 = time.time()
         if games is None:
@@ -1072,7 +1125,10 @@ def cmd_rl(args):
                    play_seconds=played, seconds=time.time() - t0, search_stats=dict(engine.stats))
         if args.eval_every and iteration % args.eval_every == 0:
             t1 = time.time()
+            engine.configure(args.cpuct, args.fpu, **search_settings(args, args.eval_search))
             row['eval'] = match(engine, model, device, args.eval_pairs, args.eval_simulations)
+            row['eval']['search'] = args.eval_search
+            engine.configure(args.cpuct, args.fpu, **search_settings(args))
             row['eval_seconds'] = time.time() - t1
         metrics.append(row)
         print(json.dumps(row), flush=True)
@@ -1086,7 +1142,7 @@ def cmd_rl(args):
 
 def cmd_eval(args):
     device = pick_device(args.device)
-    engine = Engine(args.workers, args.cpuct, args.fpu)
+    engine = Engine(args.workers, args.cpuct, args.fpu, **search_settings(args))
     model, _ = load_model(args.model, device)
     results = {}
     for suite in args.suites:
@@ -1102,7 +1158,7 @@ def cmd_eval(args):
 def cmd_h2h(args):
     """Round robin between checkpoints (named by --names, else by file name)."""
     device = pick_device(args.device)
-    engine = Engine(args.workers, args.cpuct, args.fpu)
+    engine = Engine(args.workers, args.cpuct, args.fpu, **search_settings(args))
     names = args.names or [Path(m).stem for m in args.models]
     models = [load_model(m, device)[0] for m in args.models]
     results = {}
@@ -1127,6 +1183,17 @@ def main():
         p.add_argument('--device', default='auto')
         p.add_argument('--seed', type=int, default=1)
         p.add_argument('--max-plies', type=int, default=100)
+
+    def search(p):
+        p.add_argument('--search', choices=('puct', 'gumbel'), default='puct')
+        p.add_argument('--gumbel-interior', choices=('puct', 'completed-q'), default='puct',
+                       help='Below the Gumbel root: PUCT, or the full algorithm\'s completed-Q selector')
+        p.add_argument('--gumbel-candidates', type=int, default=16, help='Root actions considered (m)')
+        p.add_argument('--gumbel-scale', type=float, default=1.0, help='Gumbel noise scale for noisy (training) searches')
+        p.add_argument('--gumbel-value-scale', type=float, default=0.1, help='c_scale of the Q transform')
+        p.add_argument('--gumbel-maxvisit-init', type=float, default=50.0, help='c_visit of the Q transform')
+        p.add_argument('--gumbel-rescale-values', action=argparse.BooleanOptionalAction, default=True,
+                       help='Rescale completed Q-values to [0, 1] (mctx default)')
 
     p = sub.add_parser('gen')
     common(p)
@@ -1178,6 +1245,10 @@ def main():
     p.add_argument('--eval-simulations', type=int, default=200)
     p.add_argument('--save-every', type=int, default=5, help='Legacy option; state now saves every iteration')
     p.add_argument('--checkpoint-seconds', type=float, default=60, help='In-flight move-boundary checkpoint cadence')
+    p.add_argument('--budget-minutes', type=float, default=0,
+                   help='Also stop once self-play and training (not evaluation) have taken this long')
+    search(p)
+    p.add_argument('--eval-search', choices=('puct', 'gumbel'), default='puct', help='Search for in-run evaluations')
     p.set_defaults(fn=cmd_rl)
 
     p = sub.add_parser('eval')
@@ -1190,6 +1261,7 @@ def main():
     p.add_argument('--cpuct', type=float, default=1.5)
     p.add_argument('--fpu', type=float, default=0.25)
     p.add_argument('--out')
+    search(p)
     p.set_defaults(fn=cmd_eval)
 
     p = sub.add_parser('h2h')
@@ -1202,6 +1274,7 @@ def main():
     p.add_argument('--cpuct', type=float, default=1.5)
     p.add_argument('--fpu', type=float, default=0.25)
     p.add_argument('--out')
+    search(p)
     p.set_defaults(fn=cmd_h2h)
 
     args = parser.parse_args()

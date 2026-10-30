@@ -2,6 +2,8 @@
 // Canonical frame: the side to move always walks toward row 0. Player 1's board
 // is flipped vertically; an optional left-right mirror provides augmentation.
 // Policies cross the boundary in canonical move IDs (0-80 pawn, 81-144 h, 145-208 v).
+// Search is PUCT, or Gumbel AlphaZero (Danihelka et al. 2022): sequential halving with
+// Gumbel noise at the root, completed-Q policy targets, and optionally its interior selector.
 #include "engine.hpp"
 #include <atomic>
 #include <cstring>
@@ -165,22 +167,75 @@ public:
     }
 };
 struct Node;
-struct Edge { int move; float prior=0; std::unique_ptr<Node> child; };
+// `logit` is the normalized log prior; Gumbel search needs it where `prior` underflows.
+struct Edge { int move; float prior=0, logit=0; std::unique_ptr<Node> child; };
 struct Node {
     Board board;
     Key key;
     int visits=0;
     double total=0;  // From this node's side-to-move perspective.
+    float raw=0;     // Network (or cached) value at expansion; never changed by backups.
     bool expanded=false;
     std::vector<Edge> edges;
     explicit Node(Board b): board(b), key(packed(b)) { board.sp=0; }
     void legal() {
         if (!edges.empty() || board.winner()!=-1) return;
         int moves[136], n=board.generate(moves); edges.reserve(n);
-        for (int i=0;i<n;i++) edges.push_back({moves[i],0,nullptr});
+        for (int i=0;i<n;i++) edges.push_back({moves[i],0,0,nullptr});
     }
 };
-struct Settings { double cpuct=1.5, fpu=0.25; };
+struct Settings {
+    double cpuct=1.5, fpu=0.25;
+    bool gumbel=false, completedInterior=false, rescale=false;
+    int candidates=16;
+    double gumbelScale=1, valueScale=0.1, maxvisitInit=50;
+};
+// Completed Q-values of `node`'s edges, transformed to sigma (mctx qtransform_completed_by_mix_value):
+// unvisited edges get the mix of the raw network value and the prior-weighted Q of visited edges.
+void sigma(const Node* node, const Settings& s, double* out) {
+    const size_t n=node->edges.size();
+    double visits=0, mass=0, weighted=0; int most=0;
+    for(size_t i=0;i<n;i++) {
+        const Edge& e=node->edges[i]; int v=e.child ? e.child->visits : 0;
+        if(!v) continue;
+        double prior=std::max(double(e.prior),1e-38), q=-e.child->total/v;
+        visits+=v; mass+=prior; weighted+=prior*q; most=std::max(most,v);
+    }
+    double mixed=visits ? (node->raw+visits*weighted/mass)/(1+visits) : node->raw;
+    double low=INFINITY, high=-INFINITY;
+    for(size_t i=0;i<n;i++) {
+        const Edge& e=node->edges[i]; int v=e.child ? e.child->visits : 0;
+        out[i]=v ? -e.child->total/v : mixed;
+        low=std::min(low,out[i]); high=std::max(high,out[i]);
+    }
+    double scale=(s.maxvisitInit+most)*s.valueScale;
+    for(size_t i=0;i<n;i++) out[i]=scale*(s.rescale ? (out[i]-low)/std::max(high-low,1e-8) : out[i]);
+}
+// softmax(logit + sigma) over the legal edges: the improved policy.
+void improved(const Node* node, const Settings& s, double* out) {
+    sigma(node,s,out);
+    const size_t n=node->edges.size(); double high=-INFINITY, sum=0;
+    for(size_t i=0;i<n;i++) { out[i]+=node->edges[i].logit; high=std::max(high,out[i]); }
+    for(size_t i=0;i<n;i++) { out[i]=std::exp(out[i]-high); sum+=out[i]; }
+    for(size_t i=0;i<n;i++) out[i]/=sum;
+}
+// Root visit count each simulation must select (mctx seq_halving.get_sequence_of_considered_visits,
+// Apache 2.0, google-deepmind/mctx@428bfb7). Ported exactly, including its remainder handling.
+std::vector<int> consideredVisits(int considered, int simulations) {
+    std::vector<int> sequence;
+    if(considered<=1) { for(int i=0;i<simulations;i++) sequence.push_back(i); return sequence; }
+    int log2max=int(std::ceil(std::log2(considered)));
+    std::vector<int> visits(considered,0);
+    for(int n=considered; int(sequence.size())<simulations; n=std::max(2,n/2)) {
+        int extra=std::max(1,int(double(simulations)/(log2max*n)));
+        for(int k=0;k<extra;k++) {
+            sequence.insert(sequence.end(),visits.begin(),visits.begin()+n);
+            for(int i=0;i<n;i++) visits[i]++;
+        }
+    }
+    sequence.resize(simulations);
+    return sequence;
+}
 // Network outputs depend only on the features, which are a function of the board,
 // repetition count (capped at 3) and remaining plies; this key is exact.
 struct Leaf {
@@ -196,8 +251,8 @@ struct LeafHash {
         return size_t(h);
     }
 };
-struct Entry { std::vector<float> priors; float value; };
-// Shared across all games and threads. Priors are stored in the node's edge order
+struct Entry { std::vector<float> logits; float value; };
+// Shared across all games and threads. Log priors are stored in the node's edge order
 // (normalized over legal moves); first-in first-out eviction.
 class Cache {
     static constexpr int SHARDS=64;
@@ -220,7 +275,7 @@ public:
         if(!limit) return;
         Shard& s=shard(k); std::lock_guard<std::mutex> lock(s.mutex);
         Entry e{std::vector<float>(node->edges.size()), value};
-        for(size_t i=0;i<node->edges.size();i++) e.priors[i]=node->edges[i].prior;
+        for(size_t i=0;i<node->edges.size();i++) e.logits[i]=node->edges[i].logit;
         if(!s.map.emplace(k,std::move(e)).second) return;
         s.order.push_back(k);
         while(s.order.size()>(limit+SHARDS-1)/SHARDS) { s.map.erase(s.order.front()); s.order.pop_front(); }
@@ -231,16 +286,18 @@ bool Cache::find(const Leaf& k, Node* node, float& value) {
     Shard& s=shard(k); std::lock_guard<std::mutex> lock(s.mutex);
     auto it=s.map.find(k);
     if(it==s.map.end()) return false;
-    if(it->second.priors.size()!=node->edges.size()) throw std::runtime_error("Cached policy size mismatch");
-    for(size_t i=0;i<node->edges.size();i++) node->edges[i].prior=it->second.priors[i];
-    node->expanded=true; value=it->second.value; return true;
+    if(it->second.logits.size()!=node->edges.size()) throw std::runtime_error("Cached policy size mismatch");
+    for(size_t i=0;i<node->edges.size();i++) { node->edges[i].logit=it->second.logits[i]; node->edges[i].prior=std::exp(it->second.logits[i]); }
+    node->expanded=true; node->raw=value=it->second.value; return true;
 }
 struct Job {
     Node* root=nullptr;
     Node* pending=nullptr;
     std::vector<Node*> path;
     std::vector<std::pair<Key,int>> history;
-    std::vector<double> noise;
+    std::vector<double> noise;    // PUCT: Dirichlet root noise. Gumbel: one Gumbel per root edge.
+    std::vector<int> schedule;    // Gumbel: root visit count eligible at each simulation.
+    std::vector<double> scratch;  // Gumbel: per-edge sigma / improved policy.
     Settings settings;
     Cache* cache=nullptr;
     std::atomic<int64_t>* hits=nullptr;
@@ -288,6 +345,40 @@ struct Job {
         branch.pop_back();
         return best==1 ? 1 : unknown ? 2 : best;
     }
+    // Gumbel root: among edges whose visits equal the schedule (or the maximum, once done), the
+    // highest Gumbel + log prior + sigma. Ties keep the lowest edge index.
+    int rootChoice(int eligible) {
+        auto& s=scratch; s.resize(root->edges.size()); sigma(root,settings,s.data());
+        double best=-INFINITY; int chosen=-1;
+        for(size_t i=0;i<root->edges.size();i++) {
+            const Edge& e=root->edges[i];
+            if((e.child ? e.child->visits : 0)!=eligible) continue;
+            double score=std::max(-1e9,noise[i]+e.logit+s[i]);
+            if(score>best) { best=score; chosen=int(i); }
+        }
+        if(chosen<0) throw std::runtime_error("No eligible Gumbel action");
+        return chosen;
+    }
+    // Gumbel child selection: the root by sequential halving; interior nodes by
+    // argmax(improved policy - N / (1 + sum N)).
+    Node* next(Node* current) {
+        int chosen=-1;
+        if(current==root) chosen=rootChoice(schedule[completed]);
+        else {
+            auto& s=scratch; s.resize(current->edges.size()); improved(current,settings,s.data());
+            double sum=0; for(auto& e:current->edges) sum+=e.child ? e.child->visits : 0;
+            double best=-INFINITY;
+            for(size_t i=0;i<current->edges.size();i++) {
+                const Edge& e=current->edges[i];
+                double score=s[i]-(e.child ? e.child->visits : 0)/(1+sum);
+                if(score>best) { best=score; chosen=int(i); }
+            }
+        }
+        if(chosen<0) throw std::runtime_error("Empty legal policy");
+        Edge& e=current->edges[chosen];
+        if (!e.child) { Board b=current->board; b.sp=0; b.make(e.move); e.child=std::make_unique<Node>(b); }
+        return e.child.get();
+    }
     void select() {
         if (!active) return;
         if (pending) throw std::runtime_error("Missing neural evaluation");
@@ -312,13 +403,16 @@ struct Job {
                     if (lookup(current,value)) { backup(value); break; }
                     pending=current; return;
                 }
+                if (settings.gumbel && (current==root || settings.completedInterior)) {
+                    current=next(current); path.push_back(current); continue;
+                }
                 // First-play urgency: unvisited moves look slightly worse than the parent.
                 double parentQ=current->visits ? current->total/current->visits : 0;
                 double fpu=parentQ-settings.fpu, scale=settings.cpuct*std::sqrt(std::max(1,current->visits));
                 double best=-INFINITY; Edge* chosen=nullptr;
                 for (size_t i=0;i<current->edges.size();i++) {
                     Edge& e=current->edges[i];
-                    double prior=(current==root && !noise.empty()) ? 0.75*e.prior+0.25*noise[i] : e.prior;
+                    double prior=(current==root && !noise.empty() && !settings.gumbel) ? 0.75*e.prior+0.25*noise[i] : e.prior;
                     int visits=e.child ? e.child->visits : 0;
                     double q=visits ? -e.child->total/visits : fpu;
                     double score=q+scale*prior/(1+visits);
@@ -336,6 +430,8 @@ struct Random {
     uint64_t state;
     uint64_t next() { uint64_t z=(state+=0x9e3779b97f4a7c15ull); z=(z^(z>>30))*0xbf58476d1ce4e5b9ull; z=(z^(z>>27))*0x94d049bb133111ebull; return z^(z>>31); }
     double uniform() { return (next()>>11)*0x1.0p-53; }
+    double open() { return ((next()>>11)+0.5)*0x1.0p-53; }  // In (0, 1).
+    double gumbel() { return -std::log(-std::log(open())); }
     double normal() { return std::sqrt(-2*std::log(1-uniform()))*std::cos(2*M_PI*uniform()); }
     double gamma(double a) {
         if(a<1) return gamma(a+1)*std::pow(1-uniform(),1/a);
@@ -370,12 +466,14 @@ struct Writer {
     }
     void node(const Node& n) {
         for(auto k:n.key) put(k);
-        put(n.visits); put(n.total); put(uint8_t(n.expanded)); put(uint32_t(n.edges.size()));
-        for(const auto& e:n.edges) { put(e.move); put(e.prior); put(uint8_t(bool(e.child))); if(e.child) node(*e.child); }
+        put(n.visits); put(n.total); put(n.raw); put(uint8_t(n.expanded)); put(uint32_t(n.edges.size()));
+        for(const auto& e:n.edges) { put(e.move); put(e.prior); put(e.logit); put(uint8_t(bool(e.child))); if(e.child) node(*e.child); }
     }
 };
+// Format 2 adds raw values and log priors. Format 1 trees restore with raw value 0 and
+// logit = log(prior): exact for PUCT, which never reads them; Gumbel never reuses trees.
 struct Reader {
-    const uint8_t* data; size_t size, offset=0;
+    const uint8_t* data; size_t size, offset=0; uint32_t version=2;
     template<class T> T get() {
         if(sizeof(T)>size-offset) throw std::runtime_error("Truncated tree checkpoint");
         T value; std::memcpy(&value,data+offset,sizeof(T)); offset+=sizeof(T); return value;
@@ -384,10 +482,10 @@ struct Reader {
         if(depth>512) throw std::runtime_error("Invalid checkpoint depth");
         Key key; for(auto& k:key) k=get<uint64_t>();
         auto n=std::make_unique<Node>(unpack(key.data()));
-        n->visits=get<int>(); n->total=get<double>(); n->expanded=get<uint8_t>();
+        n->visits=get<int>(); n->total=get<double>(); if(version>=2) n->raw=get<float>(); n->expanded=get<uint8_t>();
         auto count=get<uint32_t>(); if(count>136) throw std::runtime_error("Invalid checkpoint edges");
         for(uint32_t i=0;i<count;++i) {
-            Edge e; e.move=get<int>(); e.prior=get<float>();
+            Edge e; e.move=get<int>(); e.prior=get<float>(); e.logit=version>=2 ? get<float>() : std::log(e.prior);
             if(get<uint8_t>()) e.child=node(depth+1);
             n->edges.push_back(std::move(e));
         }
@@ -405,7 +503,7 @@ const char* az_error() { return error.c_str(); }
 int az_planes() { return PLANES; }
 int az_snapshot(Pool* p, uint8_t* out, int capacity) {
     return guard([&] {
-        Writer w; w.put(uint32_t(1)); w.put(uint32_t(p->roots.size()));
+        Writer w; w.put(uint32_t(2)); w.put(uint32_t(p->roots.size()));
         for(const auto& item:p->roots) { w.put(item.first); w.node(*item.second); }
         if(w.bytes.size()>size_t(INT32_MAX)) throw std::runtime_error("Tree checkpoint too large");
         if(out) {
@@ -419,7 +517,8 @@ int az_restore(Pool* p, const uint8_t* data, int size) {
     return guard([&] {
         if(size<0) throw std::runtime_error("Invalid tree size");
         Reader r{data,size_t(size)};
-        if(r.get<uint32_t>()!=1) throw std::runtime_error("Unknown tree format");
+        r.version=r.get<uint32_t>();
+        if(r.version<1 || r.version>2) throw std::runtime_error("Unknown tree format");
         auto count=r.get<uint32_t>();
         std::map<int,std::unique_ptr<Node>> roots;
         for(uint32_t i=0;i<count;++i) { int id=r.get<int>(); roots[id]=r.node(); }
@@ -430,7 +529,14 @@ int az_restore(Pool* p, const uint8_t* data, int size) {
 
 void* az_create(int workers) { try { error.clear(); return new Pool(workers); } catch(const std::exception& e) { error=e.what(); return nullptr; } }
 void az_destroy(Pool* p) { delete p; }
-int az_settings(Pool* p, double cpuct, double fpu) { return guard([&] { p->settings={cpuct,fpu}; return 0; }); }
+int az_settings(Pool* p, double cpuct, double fpu, int gumbel, int completedInterior, int candidates,
+                double gumbelScale, double valueScale, double maxvisitInit, int rescale) {
+    return guard([&] {
+        if(candidates<1) throw std::runtime_error("Gumbel candidates must be positive");
+        p->settings={cpuct,fpu,bool(gumbel),bool(completedInterior),bool(rescale),candidates,gumbelScale,valueScale,maxvisitInit};
+        return 0;
+    });
+}
 int az_clear(Pool* p) { return guard([&] { p->reset(); p->roots.clear(); p->histories.clear(); return 0; }); }
 int az_drop(Pool* p,int id) { return guard([&] { p->roots.erase(id); p->histories.erase(id); return 0; }); }
 int az_history(Pool* p,int id,const uint64_t* keys,const int32_t* counts,int n) {
@@ -481,13 +587,15 @@ int az_canonical_moves(int turn,int mirror,int32_t* out) {
 }
 int az_start(Pool* p) { return guard([&] { p->reset(); return 0; }); }
 // Searches the position of tree `id` against its registered history. With `noise`, the
-// root priors mix in Dirichlet(0.3) noise drawn from `seed`.
+// root priors mix in Dirichlet(0.3) noise drawn from `seed` (PUCT), or the root draws
+// Gumbel noise from it (Gumbel; without `noise` the Gumbels are zero).
+// Gumbel searches start from a fresh tree: the halving schedule counts fresh root visits.
 int az_begin(Pool* p,int id,const uint64_t* position,int ply,int maxPlies,int simulations,uint64_t seed,int noise,int group) {
     return guard([&] {
         if(simulations<1 || ply<0 || maxPlies<=ply) throw std::runtime_error("Invalid search budget");
         if(group<0 || group>1) throw std::runtime_error("Invalid search group");
         Board b=unpack(position); Key k=packed(b); auto& root=p->roots[id];
-        if(!root || root->key!=k) root=std::make_unique<Node>(b);
+        if(!root || root->key!=k || p->settings.gumbel) root=std::make_unique<Node>(b);
         Job j; j.root=root.get(); j.ply=ply; j.maxPlies=maxPlies; j.simulations=simulations; j.settings=p->settings;
         j.cache=&p->cache; j.hits=&p->hits; j.active=true; j.group=group;
         // Retained visits count toward the budget; the root's own expansion is not a simulation.
@@ -497,7 +605,11 @@ int az_begin(Pool* p,int id,const uint64_t* position,int ply,int maxPlies,int si
         j.history=history->second;
         if(b.winner()!=-1 || j.repetitions(root.get())>=3) throw std::runtime_error("Cannot search a finished game");
         root->legal();
-        if(noise) {
+        if(j.settings.gumbel) {
+            Random r{seed};
+            for(size_t i=0;i<root->edges.size();i++) j.noise.push_back(noise ? j.settings.gumbelScale*r.gumbel() : 0.0);
+            j.schedule=consideredVisits(std::min<int>(j.settings.candidates,root->edges.size()),simulations);
+        } else if(noise) {
             Random r{seed}; double sum=0;
             for(size_t i=0;i<root->edges.size();i++) { j.noise.push_back(r.gamma(0.3)); sum+=j.noise.back(); }
             for(auto& v:j.noise) v/=sum;
@@ -550,11 +662,15 @@ int az_evaluate(Pool* p,int group,const float* policies,const float* values,int 
             if(r<0 || r>=n) throw std::runtime_error("Missing leaf evaluation");
             Job& j=p->jobs[leaves[i]]; if(!j.pending) throw std::runtime_error("Unexpected evaluation");
             if(!std::isfinite(values[r])) throw std::runtime_error("Invalid value");
-            double sum=0;
-            for(size_t k=0;k<j.pending->edges.size();k++) { double v=policies[r*136+k]; if(!std::isfinite(v) || v<0) throw std::runtime_error("Invalid policy"); sum+=v; }
-            if(sum<=0) throw std::runtime_error("Empty policy");
-            for(size_t k=0;k<j.pending->edges.size();k++) j.pending->edges[k].prior=policies[r*136+k]/sum;
-            j.pending->expanded=true;
+            // Policies arrive as log probabilities over the legal moves; renormalize in double.
+            auto& edges=j.pending->edges; double high=-INFINITY, sum=0;
+            for(size_t k=0;k<edges.size();k++) { double v=policies[r*136+k]; if(std::isnan(v) || v>1e-3) throw std::runtime_error("Invalid policy"); high=std::max(high,v); }
+            if(!std::isfinite(high)) throw std::runtime_error("Empty policy");
+            for(size_t k=0;k<edges.size();k++) sum+=std::exp(policies[r*136+k]-high);
+            for(size_t k=0;k<edges.size();k++) {
+                edges[k].logit=float(policies[r*136+k]-high-std::log(sum)); edges[k].prior=std::exp(edges[k].logit);
+            }
+            j.pending->raw=values[r]; j.pending->expanded=true;
             if(!stored[r]) { p->cache.insert(j.leaf,j.pending,values[r]); stored[r]=1; }
             if(j.pending==j.root && j.path.size()==1) { j.root->visits++; j.root->total+=values[r]; }
             else j.backup(values[r]);
@@ -572,20 +688,41 @@ int az_finished(Pool* p,int32_t* out) {
         return n;
     });
 }
-// Root visit distributions (REAL move IDs) and root Q of finished slots; frees the slots.
-int az_take(Pool* p,const int32_t* slots,int n,float* out,float* rootValues) {
+// Policy targets (REAL move IDs), root Q and the move to play of finished slots; frees the slots.
+// PUCT: the root visit distribution, and move -1 (the caller samples or takes the argmax).
+// Gumbel: the improved policy over all legal moves, and the sequential-halving winner.
+int az_take(Pool* p,const int32_t* slots,int n,float* out,float* rootValues,int32_t* moves) {
     return guard([&] {
         for(int i=0;i<n;i++) {
             int slot=slots[i];
             if(slot<0 || slot>=int(p->jobs.size()) || !p->jobs[slot].finished()) throw std::runtime_error("Search still in progress");
             Job& j=p->jobs[slot]; float* row=out+209*size_t(i);
-            double sum=0; for(auto& e:j.root->edges) if(e.child) sum+=e.child->visits;
-            std::fill(row,row+209,0);
-            for(auto& e:j.root->edges) if(e.child && sum>0) row[e.move]=e.child->visits/sum;
+            std::fill(row,row+209,0); moves[i]=-1;
+            if(j.settings.gumbel) {
+                int most=0; for(auto& e:j.root->edges) most=std::max(most,e.child ? e.child->visits : 0);
+                moves[i]=j.root->edges[j.rootChoice(most)].move;
+                improved(j.root,j.settings,j.scratch.data());
+                for(size_t k=0;k<j.root->edges.size();k++) row[j.root->edges[k].move]=j.scratch[k];
+            } else {
+                double sum=0; for(auto& e:j.root->edges) if(e.child) sum+=e.child->visits;
+                for(auto& e:j.root->edges) if(e.child && sum>0) row[e.move]=e.child->visits/sum;
+            }
             rootValues[i]=j.root->visits ? j.root->total/j.root->visits : 0;
             j=Job();
         }
         return 0;
+    });
+}
+// Test hooks: the Gumbel visit schedule, and the root visit counts (REAL move IDs) of a retained tree.
+int az_considered_visits(int considered,int simulations,int32_t* out) {
+    return guard([&] { auto v=consideredVisits(considered,simulations); std::copy(v.begin(),v.end(),out); return 0; });
+}
+int az_root_visits(Pool* p,int id,int32_t* out) {
+    return guard([&] {
+        auto it=p->roots.find(id); if(it==p->roots.end() || !it->second) throw std::runtime_error("Unknown tree");
+        std::fill(out,out+209,0);
+        for(auto& e:it->second->edges) out[e.move]=e.child ? e.child->visits : 0;
+        return it->second->visits;
     });
 }
 int az_cache(Pool* p,int64_t limit) { return guard([&] { if(limit<0) throw std::runtime_error("Invalid cache size"); p->cache.resize(limit); return 0; }); }
