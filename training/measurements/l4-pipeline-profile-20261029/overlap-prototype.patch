@@ -1,0 +1,146 @@
+diff --git a/training/az.py b/training/az.py
+index 10aa29d..c3e5d01 100644
+--- a/training/az.py
++++ b/training/az.py
+@@ -8,6 +8,7 @@ Subcommands (see AZ_REPORT.md for the experiments and decisions):
+ """
+ import argparse
+ from concurrent.futures import ThreadPoolExecutor
++import contextlib
+ import copy
+ import ctypes as C
+ import json
+@@ -93,7 +94,9 @@ class Engine:
+         self.pool = lib.az_create(self.workers)
+         # Negamax opponents get their own pool and thread, so their replies overlap the searches.
+         self.opponents = lib.az_create(self.workers)
+-        if not self.pool or not self.opponents:
++        # Training features use a third pool, so training can run beside the searches.
++        self.training = lib.az_create(self.workers)
++        if not self.pool or not self.opponents or not self.training:
+             raise RuntimeError(lib.az_error().decode())
+         self.background = ThreadPoolExecutor(1)
+         # Native evaluation cache shared by all games; 0 disables lookups and in-wave deduplication.
+@@ -118,7 +121,7 @@ class Engine:
+         if getattr(self, 'background', None):
+             self.background.shutdown()
+             self.background = None
+-        for name in ('pool', 'opponents'):
++        for name in ('pool', 'opponents', 'training'):
+             if getattr(self, name, None):
+                 self.lib.az_destroy(getattr(self, name))
+                 setattr(self, name, None)
+@@ -187,11 +190,11 @@ class Engine:
+         """`negamax` on a background thread; returns a future of the moves."""
+         return self.background.submit(self.negamax, positions, nodes)
+ 
+-    def features(self, positions, repetitions, remaining, mirror):
++    def features(self, positions, repetitions, remaining, mirror, pool=None):
+         n = len(positions)
+         out = np.empty((n, self.planes, 9, 9), np.float32)
+         self.check(self.lib.az_features(
+-            self.pool, ptr(np.ascontiguousarray(positions, np.uint64).reshape(-1, 3)),
++            pool or self.pool, ptr(np.ascontiguousarray(positions, np.uint64).reshape(-1, 3)),
+             ptr(np.ascontiguousarray(repetitions, np.int32)), ptr(np.ascontiguousarray(remaining, np.float32)),
+             ptr(np.ascontiguousarray(mirror, np.uint8)), n, ptr(out)))
+         return out
+@@ -326,7 +329,8 @@ class Graphs:
+                     self.net(static)
+             torch.cuda.current_stream().wait_stream(stream)
+             graph = torch.cuda.CUDAGraph()
+-            with torch.cuda.graph(graph, pool=self.pool):
++            # Thread-local, so a training thread may use the GPU during capture.
++            with torch.cuda.graph(graph, pool=self.pool, capture_error_mode='thread_local'):
+                 out = self.net(static)
+             self.graphs[len(x)] = graph, static, out
+         graph, static, out = self.graphs[len(x)]
+@@ -509,7 +513,7 @@ def train_steps(model, optimizer, replay, engine, steps, batch_size, device, rng
+     for _ in range(steps):
+         idx = rng.integers(0, replay.size, batch_size)
+         mirror = rng.integers(0, 2, batch_size).astype(np.uint8)
+-        x = engine.features(replay.position[idx], replay.repetitions[idx], replay.remaining[idx], mirror)
++        x = engine.features(replay.position[idx], replay.repetitions[idx], replay.remaining[idx], mirror, engine.training)
+         policy = replay.policy[idx].astype(np.float32)
+         flipped = mirror.astype(bool)
+         # Mirroring is applied after canonicalization (the two axes commute).
+@@ -1021,6 +1025,20 @@ def cmd_rl(args):
+         g.learner = learner
+         return g
+ 
++    # With --overlap, training on one iteration's games runs on a background thread while the
++    # next iteration plays with the previous weights (`actor`); weights swap at iteration ends.
++    actor = copy.deepcopy(model) if args.overlap else model
++    trainer = ThreadPoolExecutor(1)
++    stream = torch.cuda.Stream() if device == 'cuda' else None
++
++    def train(steps):
++        with torch.cuda.stream(stream) if stream else contextlib.nullcontext():
++            losses = train_steps(model, optimizer, replay, engine, steps, args.batch_size, device, nprng)
++        if stream:
++            stream.synchronize()
++        return losses
++
++    pending = trainer.submit(train, metrics[-1]['steps']) if args.overlap and metrics else None
+     last_save = [time.monotonic()]
+     while iteration < args.iterations:
+         iteration += 1
+@@ -1045,9 +1063,14 @@ def cmd_rl(args):
+                 print(f'  iter {iteration}: {done}/{args.games} games done, {time.time() - t0:.0f}s', flush=True)
+         # An iteration ends once `--games` games have finished. Every game that ends is
+         # replaced at once, so batches stay full; games still running carry over.
+-        play(engine, model, games, device, args.simulations, args.max_plies, noise=True,
++        # Mid-iteration checkpoints would save a model that is still training.
++        play(engine, actor, games, device, args.simulations, args.max_plies, noise=True,
+              temperature_plies=args.temperature_plies, rng=rng, progress=progress, resume=True,
+-             checkpoint=due, spawn=lambda ended: new_game(ended.id), until=lambda: finished() >= args.games)
++             checkpoint=(lambda: False) if pending else due, spawn=lambda ended: new_game(ended.id),
++             until=lambda: finished() >= args.games)
++        played = time.time() - t0
++        losses = pending.result() if pending else {}
++        waited = time.time() - t0 - played
+         carried = [g for g in games if g.result is None]
+         games = [g for g in games if g.result is not None]
+         for g in carried:
+@@ -1058,9 +1081,9 @@ def cmd_rl(args):
+             for row in samples(g):
+                 replay.add(*row)
+                 rows += 1
+-        played = time.time() - t0
+         steps = max(1, int(rows * args.reuse / args.batch_size))
+-        losses = train_steps(model, optimizer, replay, engine, steps, args.batch_size, device, nprng)
++        if not args.overlap:
++            losses = train(steps)
+         vs = [g for g in games if g.learner >= 0]
+         selfplay = [g for g in games if g.learner < 0]
+         row = dict(iteration=iteration, games=len(games), carried=len(carried), positions=rows, replay=replay.size,
+@@ -1069,7 +1092,8 @@ def cmd_rl(args):
+                    train_cutoffs=sum(g.result == -1 for g in games),
+                    selfplay_first_wins=sum(g.result == 0 for g in selfplay),
+                    mean_plies=sum(g.ply for g in games) / len(games),
+-                   play_seconds=played, seconds=time.time() - t0, search_stats=dict(engine.stats))
++                   play_seconds=played, train_wait_seconds=waited, seconds=time.time() - t0,
++                   search_stats=dict(engine.stats))
+         if args.eval_every and iteration % args.eval_every == 0:
+             t1 = time.time()
+             row['eval'] = match(engine, model, device, args.eval_pairs, args.eval_simulations)
+@@ -1082,6 +1106,11 @@ def cmd_rl(args):
+                       games=games, engine=engine)
+         last_save[0] = time.monotonic()
+         (out / 'metrics.json').write_text(json.dumps(metrics, indent=1))
++        if args.overlap:
++            actor.load_state_dict(model.state_dict())
++            pending = trainer.submit(train, steps)
++    if pending:
++        pending.result()
+ 
+ 
+ def cmd_eval(args):
+@@ -1178,6 +1207,8 @@ def main():
+     p.add_argument('--eval-simulations', type=int, default=200)
+     p.add_argument('--save-every', type=int, default=5, help='Legacy option; state now saves every iteration')
+     p.add_argument('--checkpoint-seconds', type=float, default=60, help='In-flight move-boundary checkpoint cadence')
++    p.add_argument('--overlap', action='store_true',
++                   help='Train on each iteration while the next one plays with the previous weights')
+     p.set_defaults(fn=cmd_rl)
+ 
+     p = sub.add_parser('eval')

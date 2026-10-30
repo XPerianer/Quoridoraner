@@ -68,3 +68,31 @@ per move. On the L4, at 2,048 games:
 
 Self-play is now mostly GPU-bound. Training (31 s) is the largest remaining
 block; only overlapping it with self-play would hide it.
+
+## Overlapping training with self-play: rejected
+
+Prototype (`overlap-prototype.patch`, against `91e49ac`; not merged): an
+`--overlap` flag trained on each iteration's games on a background thread,
+its own CUDA stream and its own native feature pool, while the next iteration
+played with the previous weights. Weights were swapped at iteration ends, so
+games lagged the trained network by one iteration. Runs stayed deterministic
+across worker counts and after a resume. CUDA graph capture had to become
+thread-local.
+
+Same L4 session, 2,048 games, no eval, 5 iterations each
+(`profile_rl.py 2048 200 5 0 <tag> [--overlap]`):
+
+| | Off (`overlap-off-2048.json`) | On (`overlap-on-2048.json`) |
+|---|---:|---:|
+| Iteration seconds, iterations 2–5 | 81–83 | 82–89 |
+| Self-play seconds per iteration | 50 | 81–88 |
+| Waiting for training at the iteration end | — | ~0 s |
+| GPU busy (nvidia-smi) | 89% playing, 91% training | 99% while both ran |
+| Wall time for 5 iterations | 467 s | 464 s |
+
+Training finished well inside each rollout, but slowed the rollout by more
+than its own 32 s. The GPU is the bottleneck in both phases: about 73 s of GPU
+work per iteration bounds any overlap at ~11% on one L4, and training kernels
+competing with search batches delay the searches, which then leave the CPU
+waiting. Overlap could pay off only with spare GPU capacity, such as a second
+GPU for training.

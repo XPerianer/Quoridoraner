@@ -94,7 +94,9 @@ uses Python object deserialization).
 [Profile of the full `rl` loop on one L4](measurements/l4-pipeline-profile-20261029/README.md),
 200 simulations, half the games against negamax: an iteration of 1,024 games
 took 96 s before these pipeline changes; 2,048 games now take 84 s (about
-2.3× the games per hour, including training).
+2.3× the games per hour, including training). Training during the next
+rollout was tried and rejected: the L4 is GPU-bound in both phases, so it gave
+no speedup ([details](measurements/l4-pipeline-profile-20261029/README.md#overlapping-training-with-self-play-rejected)).
 
 
 [One L4, 128×10 network, 1,024 self-play games](measurements/l4-native-lookup-20261029/README.md):

@@ -32,7 +32,7 @@ def timed(name, fn, is_phase=False):
     return wrapper
 
 
-for name in ('negamax', 'begin', 'take', 'finished', 'advance', 'legal', 'features', 'snapshot', 'drop', 'launch', 'collect'):
+for name in ('negamax', 'begin', 'take', 'finished', 'advance', 'advance_many', 'history', 'legal', 'features', 'snapshot', 'drop', 'launch', 'collect'):
     setattr(az.Engine, name, timed(name, getattr(az.Engine, name)))
 az.random_opening = timed('random_opening', az.random_opening)
 az.save_rl_state = timed('save_rl_state', az.save_rl_state)
@@ -63,7 +63,7 @@ def dump(extra=None):
 
 
 t = time.time()
-sys.argv = ['az.py', 'rl', '--init', '/content/rl-model.pt', '--out', f'/content/prof-{TAG}', '--iterations', ITERS,
+sys.argv = ['az.py', 'rl', *sys.argv[6:], '--init', '/content/rl-model.pt', '--out', f'/content/prof-{TAG}', '--iterations', ITERS,
             '--games', str(GAMES), '--negamax-fraction', '0.5', '--simulations', str(SIMS), '--eval-every', EVAL,
             '--eval-pairs', '20', '--eval-simulations', '200', '--batch-size', '1024', '--lr', '3e-4',
             '--replay', '600000', '--checkpoint-seconds', '600']
