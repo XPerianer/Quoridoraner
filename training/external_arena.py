@@ -1,6 +1,6 @@
 """Play the Colab model against pinned, independent public Quoridor bots.
 
-Dependencies live in runs/external-bots; see EXTERNAL_BOTS.md for provenance.
+Dependencies live in experiments/training/external-bots; see EXTERNAL_BOTS.md for provenance.
 No fallback moves: encoding/legality disagreements abort the match.
 """
 import argparse
@@ -16,7 +16,8 @@ import torch
 from az import Engine, START, load_model, turn, winner
 
 HERE = Path(__file__).resolve().parent
-BOTS = HERE / 'runs/external-bots'
+RUNS = HERE.parent / 'experiments/training'
+BOTS = RUNS / 'external-bots'
 
 
 class Goris:
@@ -177,7 +178,7 @@ def make_opponent(name, args, seed):
 def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument('--opponents', nargs='+', choices=['gorisanson', 'sigma', 'borowski'], default=['gorisanson', 'sigma'])
-    p.add_argument('--model', type=Path, default=HERE / 'runs/az/colab/rl-model.pt')
+    p.add_argument('--model', type=Path, default=RUNS / 'az/colab/rl-model.pt')
     p.add_argument('--simulations', type=int, default=400)
     p.add_argument('--goris-sims', type=int, default=60000)
     p.add_argument('--sigma-sims', type=int, default=400)
@@ -186,7 +187,7 @@ def main():
     p.add_argument('--max-plies', type=int, default=200)
     p.add_argument('--validate', action='store_true')
     p.add_argument('--resume', action='store_true', help='Skip completed saved games with matching configuration')
-    p.add_argument('--out', type=Path, default=HERE / 'runs/external-matches')
+    p.add_argument('--out', type=Path, default=RUNS / 'external-matches')
     args = p.parse_args()
     torch.set_num_threads(1)
     engine = Engine(1)

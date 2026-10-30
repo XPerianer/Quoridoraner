@@ -23,5 +23,5 @@ def bundle(output):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--out', type=Path, default=ROOT / 'training/runs/colab-source.zip')
+    parser.add_argument('--out', type=Path, default=ROOT / 'experiments/training/colab-source.zip')
     print(bundle(parser.parse_args().out))

@@ -4,7 +4,7 @@
 fixed 2000-node negamax in **94–97% of games** on fresh held-out openings
 (and 78% with no search at all). Every earlier model in this repo scored
 0 wins in its 40-game held-out evaluation. Final model:
-`training/runs/az/colab/rl-model.pt` (128 channels × 10 residual blocks).
+`experiments/training/az/colab/rl-model.pt` (128 channels × 10 residual blocks).
 
 All numbers below are paired-color matches against `negamax(nodes=2000)` (the
 same C++ searcher and the same 100-ply limit the old trainer used). Openings come
@@ -206,7 +206,7 @@ Infrastructure notes:
 - All training ran on L4s. The evaluation ran on one L4. Results were synced every 3–5 minutes.
 - An L4 (1.54 units/h) was as fast as the A100 here, because MCTS is partly CPU-bound.
 - Total cost: about 14 units, of which about 7 were lost with the first A100 VM.
-- Artifacts are in `training/runs/az/opponents/`: `models/` and the per-arm logs/metrics.
+- Artifacts are in `experiments/training/az/opponents/`: `models/` and the per-arm logs/metrics.
 
 ### Gumbel AlphaZero vs PUCT, budget-matched (2026-10-30)
 
@@ -225,10 +225,10 @@ highest against negamax (0.928 vs 2000 and 0.893 vs 32000 at 128 simulations, ag
 .venv/bin/python -m unittest discover -s training -p test_az.py
 
 # Local pilot (~5 minutes on an M1 Pro)
-.venv/bin/python training/az.py gen --out training/runs/az/gen-local.npz --games 4000 --parallel 500
-.venv/bin/python training/az.py pretrain --data training/runs/az/gen-local.npz --out training/runs/az/pre-local \
+.venv/bin/python training/az.py gen --out experiments/training/az/gen-local.npz --games 4000 --parallel 500
+.venv/bin/python training/az.py pretrain --data experiments/training/az/gen-local.npz --out experiments/training/az/pre-local \
     --epochs 3 --eval-pairs 0
-.venv/bin/python training/az.py eval training/runs/az/pre-local/model.pt --pairs 50 --simulations 128 \
+.venv/bin/python training/az.py eval experiments/training/az/pre-local/model.pt --pairs 50 --simulations 128 \
     --suites heldout --seed 2027
 
 # Ablation without path planes
@@ -244,7 +244,7 @@ colab upload -s qaz az-src.zip /content/az-src.zip
 colab upload -s qaz training/colab_az.sh /content/pipeline.sh
 # unzip to /content/q, then: nohup bash /content/pipeline.sh &   (logs in /content/runs)
 # then training/colab_az_eval.sh for the final evaluation table
-colab download -s qaz /content/runs/rl/model.pt training/runs/az/colab/rl-model.pt
+colab download -s qaz /content/runs/rl/model.pt experiments/training/az/colab/rl-model.pt
 colab stop -s qaz
 ```
 

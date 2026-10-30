@@ -5,7 +5,7 @@ import json
 from pathlib import Path
 import urllib.request
 
-ROOT = Path(__file__).resolve().parent / 'runs/external-bots'
+ROOT = Path(__file__).resolve().parents[1] / 'experiments/training/external-bots'
 SOURCES = {
     'borowski': {
         'repo': 'danielborowski/quoridor-ai',

@@ -34,12 +34,12 @@ From the repository root:
 npm install
 python3 -m venv .venv                         # only if no environment exists yet
 .venv/bin/python -m pip install -r training/requirements.txt
-.venv/bin/python training/train.py --out training/runs/my-first-run
+.venv/bin/python training/train.py --out experiments/training/my-first-run
 ```
 
 Automatic device selection benchmarks CPU and available Apple MPS/NVIDIA CUDA inference, including host/device transfers, at the configured game batch size. It selects the faster device and saves the measurements. A resumed run retains that choice unless you override `--device cpu`, `--device mps`, or `--device cuda`. The program uses one PyTorch CPU thread. No browser changes or model downloads are needed.
 
-After setup, `npm run train -- --out training/runs/my-first-run` is an equivalent shortcut.
+After setup, `npm run train -- --out experiments/training/my-first-run` is an equivalent shortcut.
 
 In a terminal, the colored live dashboard is organized into live telemetry,
 per-arm learning, training quality, run settings, and loss panels. It shows the
@@ -68,7 +68,7 @@ For a fresh run that advances only after measured performance:
 
 ```sh
 .venv/bin/python training/train.py \
-  --out training/runs/gated-balanced-full \
+  --out experiments/training/gated-balanced-full \
   --curriculum gated --replay-sampling task --negamax-value-turns both \
   --walls 10 --curriculum-games 40 --curriculum-win-rate 0.4 --curriculum-streak 2 \
   --iterations 200 --games 128 --parallel-games 128 \
@@ -114,7 +114,7 @@ Use a new directory for this experiment; resume restores all gate and sampling
 settings without modification. Pause and resume the new run normally:
 
 ```sh
-.venv/bin/python training/train.py --resume training/runs/gated-balanced-full
+.venv/bin/python training/train.py --resume experiments/training/gated-balanced-full
 ```
 
 ## Adaptive negamax opponent
@@ -123,14 +123,14 @@ For a controlled learning diagnostic, see [the zero/two-wall investigation](DIAG
 Audit saved results, including curriculum sample imbalance, with:
 
 ```sh
-.venv/bin/python training/diagnose.py training/runs/adaptive-64-u32
+.venv/bin/python training/diagnose.py experiments/training/adaptive-64-u32
 ```
 
 Start a fresh run with a weaker training opponent and win-gated promotions:
 
 ```sh
 .venv/bin/python training/train.py \
-  --out training/runs/adaptive-64-u32 \
+  --out experiments/training/adaptive-64-u32 \
   --iterations 200 --games 128 --parallel-games 128 --batch-size 256 \
   --updates 32 --simulations 64 --curriculum races --curriculum-interval 25 \
   --adaptive-negamax --negamax-start-nodes 32 --negamax-nodes 2000 \
@@ -151,7 +151,7 @@ monitoring and final held-out evaluations.
 `latest.pt` saves the current budget, streak, last processed evaluation, and full
 promotion history. `opponent.json` exposes that state at each checkpoint, and
 `metrics.json` includes each game's opponent node budget. Resume with
-`--resume training/runs/adaptive-64-u32`; settings and progression are restored.
+`--resume experiments/training/adaptive-64-u32`; settings and progression are restored.
 Existing fixed-opponent checkpoints remain fixed; use a new directory to enable
 adaptation. Node budgets are approximate: depth one always completes, so even
 32 nodes can be a capable opponent and adjacent budgets can behave similarly.
@@ -161,10 +161,10 @@ adaptation. Node budgets are approximate: depth one always completes, so even
 Press **Ctrl-C** once. Training finishes the current batch of moves or gradient update, writes a checkpoint, exports both bots, and exits. SIGTERM follows the same path.
 
 ```sh
-.venv/bin/python training/train.py --resume training/runs/my-first-run
+.venv/bin/python training/train.py --resume experiments/training/my-first-run
 
 # Extend the total iteration budget, including a completed experiment:
-.venv/bin/python training/train.py --resume training/runs/my-first-run --iterations 10
+.venv/bin/python training/train.py --resume experiments/training/my-first-run --iterations 10
 ```
 
 An atomic `latest.pt` is written at startup, every 15 seconds at a completed move-batch/update boundary, and on pause or completion. Set `--checkpoint-seconds 10` to change the interval. It contains both models and AdamW optimizer states, bounded replay buffers, every active game and its training samples, retained search trees, repetition history, random generator states, phase/counters, results, and configuration. A crash resumes from the last completed checkpoint; work since that checkpoint is recomputed. The interval can be exceeded by the time needed to finish one move batch or update. Graceful Ctrl-C saves all completed work. A process lock prevents two trainers writing to one run. Existing runs cannot be overwritten accidentally.
@@ -175,16 +175,16 @@ Resume restores training settings. Only `--iterations` (extend only), `--device`
 
 ```sh
 # Play as white (pawn squares e2; wall anchors d5h / d5v; ? lists legal moves).
-.venv/bin/python training/bot.py play training/runs/my-first-run/selfplay.pt
+.venv/bin/python training/bot.py play experiments/training/my-first-run/selfplay.pt
 
 # Compare the other model with negamax on paired openings.
-.venv/bin/python training/bot.py evaluate training/runs/my-first-run/negamax.pt --games 20
+.venv/bin/python training/bot.py evaluate experiments/training/my-first-run/negamax.pt --games 20
 
 # JSON move ID, notation, and visit-count policy from the initial board.
-.venv/bin/python training/bot.py move training/runs/my-first-run/selfplay.pt
+.venv/bin/python training/bot.py move experiments/training/my-first-run/selfplay.pt
 
 # Or provide a Position JSON matching src/engine/types.ts.
-.venv/bin/python training/bot.py move training/runs/my-first-run/selfplay.pt --position position.json
+.venv/bin/python training/bot.py move experiments/training/my-first-run/selfplay.pt --position position.json
 ```
 
 `bot.py` also accepts `--device`, `--simulations`, `--max-plies`, `--negamax-nodes`, `--seed`, and (for play) `--human black`. The `move` command treats the supplied position as a fresh game with no earlier repetition history. Training and complete CLI games track that history.
@@ -195,10 +195,10 @@ The experimental Node-API engine ports Quoridor moves, walls, shortest-path dist
 
 ```sh
 npm run train:native:build
-npm run train -- --engine native --out training/runs/native
+npm run train -- --engine native --out experiments/training/native
 # Keep TypeScript moves for MCTS and accelerate only its fixed negamax opponent:
-npm run train -- --engine native-negamax --out training/runs/native-opponent
-npm run train:native:bench -- training/runs/native-search.json
+npm run train -- --engine native-negamax --out experiments/training/native-opponent
+npm run train:native:bench -- experiments/training/native-search.json
 ```
 
 These Node-based options are `--engine typescript` (the default), `native`, and `native-negamax`. The faster in-process `direct` backend is described below. Bot commands accept the same `--engine` option. The compiled addon is ignored by git and can be rebuilt with `npm run train:native:build`. Existing checkpoints retain their backend on resume; explicitly pass `--engine` to switch. Cross-backend training-resume reproducibility is not guaranteed.
@@ -222,7 +222,7 @@ The scheduler does not start games from future iterations or use stale weights.
 Randomized training search is opt-in:
 
 ```sh
-.venv/bin/python training/train.py --out training/runs/randomized-budget \
+.venv/bin/python training/train.py --out experiments/training/randomized-budget \
   --iterations 200 --games 256 --parallel-games 128 --game-scheduler rolling \
   --search-budget randomized --simulations 64 --fast-simulations 16 \
   --full-search-probability 0.25 --updates 32 --batch-size 256 \
@@ -246,11 +246,11 @@ wins from 7/40 to 1/40. Keep fixed budgets for normal selfplay runs; see
 Compare both schedulers and randomized budgets sequentially with two seeds:
 
 ```sh
-.venv/bin/python training/benchmark_speed.py --out training/runs/speed-comparison
+.venv/bin/python training/benchmark_speed.py --out experiments/training/speed-comparison
 # Profile one additional iteration, including mature history/replay, in a new directory:
 .venv/bin/python training/profile_segment.py \
-  --checkpoint training/runs/both-values-full-curriculum/latest.pt \
-  --out training/runs/profile-segment --device mps
+  --checkpoint experiments/training/both-values-full-curriculum/latest.pt \
+  --out experiments/training/profile-segment --device mps
 ```
 
 The profiler requires a completed checkpoint and never modifies its source.
@@ -262,10 +262,10 @@ and full-search moves to audit the realized budget and policy-target frequency.
 
 ```sh
 # Compare CPU/MPS/CUDA at several inference batch sizes (JSON output is optional).
-npm run train:bench -- --out training/runs/devices.json
+npm run train:bench -- --out experiments/training/devices.json
 
 # More games in flight produce larger inference batches.
-npm run train -- --out training/runs/batched --games 32 --eval-games 16 \
+npm run train -- --out experiments/training/batched --games 32 --eval-games 16 \
   --parallel-games 8 --checkpoint-seconds 15
 ```
 
@@ -290,10 +290,10 @@ and inference do not overlap yet. Request/result ordering stays deterministic.
 
 ```sh
 # Resume an existing large run with four CPU search workers.
-.venv/bin/python training/train.py --resume training/runs/20261022-220205 --workers 4
+.venv/bin/python training/train.py --resume experiments/training/20261022-220205 --workers 4
 
 # NVIDIA host with CUDA-enabled PyTorch, Node.js and npm dependencies installed:
-python training/train.py --resume training/runs/20261022-220205 --workers 4 --device cuda
+python training/train.py --resume experiments/training/20261022-220205 --workers 4 --device cuda
 ```
 
 `--workers` defaults to 1 for compatibility and small workloads. The actual
@@ -322,11 +322,11 @@ simulation budgets, training targets, and optimizer settings are preserved.
 
 ```sh
 # Pause an active run with Ctrl-C before resuming it here.
-.venv/bin/python training/train.py --resume training/runs/20261022-220205 \
+.venv/bin/python training/train.py --resume experiments/training/20261022-220205 \
   --iterations 2000 --engine direct --workers 4 --device mps --mps-inference hybrid
 
 # Or start a fresh large run:
-.venv/bin/python training/train.py --out training/runs/mps-fast \
+.venv/bin/python training/train.py --out experiments/training/mps-fast \
   --iterations 1000 --games 128 --parallel-games 128 --batch-size 256 \
   --engine direct --workers 4 --device mps --mps-inference hybrid
 ```
@@ -365,12 +365,12 @@ Reproduce complete comparisons, including wall time, checkpoints, game records,
 losses and exported weights:
 
 ```sh
-npm run train:bench:pipeline -- --out training/runs/mps-comparison --device mps
+npm run train:bench:pipeline -- --out experiments/training/mps-comparison --device mps
 # Include several model updates and growing replay buffers:
-npm run train:bench:pipeline -- --out training/runs/mps-sustained \
+npm run train:bench:pipeline -- --out experiments/training/mps-sustained \
   --device mps --iterations 3 --repeats 1 --variants bridge bucketed hybrid
 # Inspect layouts, precision, compilation, and host/device transfers:
-.venv/bin/python training/benchmark_mps_layout.py --out training/runs/mps-layout.json
+.venv/bin/python training/benchmark_mps_layout.py --out experiments/training/mps-layout.json
 ```
 
 See [BENCHMARKS.md](BENCHMARKS.md) and [raw measurements](measurements/) for the
@@ -382,7 +382,7 @@ playing strength.
 Run `training/train.py --help` for all flags. Useful larger-run settings:
 
 ```sh
-.venv/bin/python training/train.py --out training/runs/larger \
+.venv/bin/python training/train.py --out experiments/training/larger \
   --iterations 20 --games 20 --simulations 128 --updates 100 --eval-games 20
 ```
 
@@ -452,7 +452,7 @@ race starts while retaining the chosen wall inventory.
 Start a separate experiment, preserving the original run:
 
 ```sh
-.venv/bin/python training/train.py --out training/runs/curriculum-64 \
+.venv/bin/python training/train.py --out experiments/training/curriculum-64 \
   --iterations 200 --games 128 --parallel-games 128 --batch-size 256 \
   --simulations 64 --curriculum races --curriculum-interval 25 --walls 10 \
   --eval-games 20 --eval-every 10 --heldout-games 40 \
@@ -506,8 +506,8 @@ architecture cannot change on resume.
 Run the controlled comparison:
 
 ```sh
-.venv/bin/python training/benchmark_depth.py --out training/runs/depth-comparison-new \
-  --source training/runs/both-values-full-curriculum/latest.pt \
+.venv/bin/python training/benchmark_depth.py --out experiments/training/depth-comparison-new \
+  --source experiments/training/both-values-full-curriculum/latest.pt \
   --device mps --seeds 1 2 --updates 500 --seconds 120
 ```
 
@@ -527,8 +527,8 @@ Use `--phase frozen` or `--phase online` to run just one part.
 For paired direct matches against the original architecture, use:
 
 ```sh
-.venv/bin/python training/benchmark_depth.py --out training/runs/depth-matches \
-  --phase matches --trained-runs training/runs/depth-comparison-new \
+.venv/bin/python training/benchmark_depth.py --out experiments/training/depth-matches \
+  --phase matches --trained-runs experiments/training/depth-comparison-new \
   --device mps --seeds 1 2 --eval-games 20
 ```
 
@@ -561,7 +561,7 @@ are measured.
 Compare on identical frozen replay minibatches and game-pair validation splits:
 
 ```sh
-.venv/bin/python training/benchmark_depth.py   --out training/runs/representation-comparison --phase frozen   --architectures small edges lattice mlp --device cpu --seeds 1 2   --updates 500
+.venv/bin/python training/benchmark_depth.py   --out experiments/training/representation-comparison --phase frozen   --architectures small edges lattice mlp --device cpu --seeds 1 2   --updates 500
 ```
 
 Use `--phase online` for equal-time training followed by playing evaluations,
@@ -574,7 +574,7 @@ measures generalization to saved search targets, not playing strength.
 
 Open [colab.ipynb](colab.ipynb) in Colab and select a GPU runtime. From this
 workspace run `python3 training/prepare_colab.py`, then upload
-`training/runs/colab-source.zip` in the notebook. The bundle includes current
+`experiments/training/colab-source.zip` in the notebook. The bundle includes current
 uncommitted training source; no push, Node, or web dependencies are needed for
 the direct C++ backend. Keep Colab's installed CUDA-enabled PyTorch rather than
 installing the locally pinned `requirements.txt`. The notebook builds the native
@@ -599,7 +599,7 @@ Existing architectures and old checkpoints retain their shapes and FP32 behavior
 Measure hardware before choosing training batches:
 
 ```sh
-python training/benchmark_cuda.py --out training/runs/cuda-sweep.json \
+python training/benchmark_cuda.py --out experiments/training/cuda-sweep.json \
   --architectures small residual64 residual128 residual256 residual512 \
   --batches 32 128 512 --precisions fp32 bf16
 ```

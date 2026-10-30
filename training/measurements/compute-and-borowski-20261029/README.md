@@ -18,9 +18,9 @@ Subdirectories contain configurations, hashes, summaries, and complete per-game 
 
 ```sh
 .venv/bin/python training/fetch_external_bots.py
-.venv/bin/python training/external_arena.py --opponents borowski --out training/runs/borowski-repeat
-.venv/bin/python training/external_arena.py --opponents sigma --simulations 1600 --out training/runs/sigma-1600-repeat
-.venv/bin/python training/external_arena.py --opponents sigma --simulations 6400 --out training/runs/sigma-6400-repeat
+.venv/bin/python training/external_arena.py --opponents borowski --out experiments/training/borowski-repeat
+.venv/bin/python training/external_arena.py --opponents sigma --simulations 1600 --out experiments/training/sigma-1600-repeat
+.venv/bin/python training/external_arena.py --opponents sigma --simulations 6400 --out experiments/training/sigma-6400-repeat
 ```
 
 All 63 Borowski bot choices were also reproduced exactly using the original page HTML and jQuery 1.7.1 in jsdom. See `borowski-dom-verification.json` and `verify_borowski_dom.cjs`.

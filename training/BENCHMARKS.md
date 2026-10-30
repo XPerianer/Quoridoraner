@@ -99,7 +99,7 @@ monitoring trajectories and cutoff counts:
 Reproduce this control with:
 
 ```sh
-.venv/bin/python training/benchmark_speed.py --out training/runs/budget-learning \
+.venv/bin/python training/benchmark_speed.py --out experiments/training/budget-learning \
   --variants rolling randomized --seeds 1 2 --iterations 20 \
   --games 32 --parallel-games 32 --batch-size 128 --walls 0 --curriculum none
 ```
@@ -202,8 +202,8 @@ Raw results: [baseline](measurements/mps-pipeline-before.json),
 [three-iteration comparison](measurements/mps-pipeline-sustained.json).
 
 ```sh
-npm run train:bench:pipeline -- --out training/runs/mps-reproduce --device mps
-npm run train:bench:pipeline -- --out training/runs/mps-sustained-reproduce \
+npm run train:bench:pipeline -- --out experiments/training/mps-reproduce --device mps
+npm run train:bench:pipeline -- --out experiments/training/mps-sustained-reproduce \
   --device mps --iterations 3 --repeats 1 --variants bridge bucketed hybrid
 ```
 
@@ -279,7 +279,7 @@ learning experiment.
 Reproduce the workload (choose a fresh output directory each time):
 
 ```sh
-.venv/bin/python training/train.py --out training/runs/speed-128 \
+.venv/bin/python training/train.py --out experiments/training/speed-128 \
   --iterations 1 --games 128 --parallel-games 128 --batch-size 256 \
   --device cpu --plain
 ```
@@ -345,9 +345,9 @@ engine work, and startup costs are not measured by this microbenchmark.
 Recheck on your own machine:
 
 ```sh
-npm run train:bench -- --out training/runs/devices.json
-npm run train -- --out training/runs/cpu --device cpu --plain
-npm run train -- --out training/runs/mps --device mps --plain
+npm run train:bench -- --out experiments/training/devices.json
+npm run train -- --out experiments/training/cpu --device cpu --plain
+npm run train -- --out experiments/training/mps --device mps --plain
 ```
 
 The trainer writes `performance.json` on pause/completion, with inference batch
@@ -381,8 +381,8 @@ Build and rerun both comparisons on your machine:
 
 ```sh
 npm run train:native:build
-npm run train:native:bench -- training/runs/native-search.json
-npm run train -- --engine typescript --out training/runs/reference --device cpu
-npm run train -- --engine native-negamax --out training/runs/cpp-opponent --device cpu
-npm run train -- --engine native --out training/runs/cpp-full --device cpu
+npm run train:native:bench -- experiments/training/native-search.json
+npm run train -- --engine typescript --out experiments/training/reference --device cpu
+npm run train -- --engine native-negamax --out experiments/training/cpp-opponent --device cpu
+npm run train -- --engine native --out experiments/training/cpp-full --device cpu
 ```

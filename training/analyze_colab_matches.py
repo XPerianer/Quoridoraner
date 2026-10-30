@@ -13,7 +13,7 @@ def load(path):
 
 def main():
     torch.set_num_threads(1)
-    root = Path('training/runs')
+    root = Path('experiments/training')
     out = root / 'colab-strength'; out.mkdir(exist_ok=True)
     result_path = out / 'matches.json'
     rows = json.loads(result_path.read_text()) if result_path.exists() else []

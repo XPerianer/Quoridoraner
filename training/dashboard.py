@@ -10,7 +10,7 @@ import threading
 from urllib.parse import urlparse, parse_qs
 
 ROOT = Path(__file__).resolve().parents[1]
-RUNS = ROOT / 'training' / 'runs'
+RUNS = ROOT / 'experiments' / 'training'
 LOCK = threading.Lock()
 MODELS = OrderedDict()
 BRIDGE = None
@@ -54,7 +54,7 @@ def describe(path, detail=False):
 
 
 def az_runs():
-    """AlphaZero runs from az.py: every checkpoint folder under runs/az (not train.py's format)."""
+    """AlphaZero runs from az.py: every checkpoint folder under experiments/training/az (not train.py's format)."""
     root = RUNS / 'az'
     folders = sorted({p.parent for p in root.rglob('*model*.pt')}) if root.exists() else []
     result = []

@@ -14,7 +14,7 @@ const { values, positionals } = parseArgs({
   options: {
     pairs: { type: 'string' },
     concurrency: { type: 'string', default: String(Math.max(1, availableParallelism() - 1)) },
-    out: { type: 'string', default: 'selfplay/results' },
+    out: { type: 'string', default: 'experiments/selfplay' },
   },
 })
 if (positionals.length !== 1) {

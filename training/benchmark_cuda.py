@@ -72,7 +72,7 @@ def measure(args):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--out', type=Path, default=Path('training/runs/cuda-sweep.json'))
+    parser.add_argument('--out', type=Path, default=Path('experiments/training/cuda-sweep.json'))
     parser.add_argument('--architectures', nargs='+', choices=ARCHITECTURES,
                         default=['small', 'residual64', 'residual128', 'residual256', 'residual512'])
     parser.add_argument('--batches', nargs='+', type=int, default=[32, 128, 512])

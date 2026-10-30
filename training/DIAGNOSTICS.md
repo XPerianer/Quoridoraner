@@ -30,7 +30,7 @@ with these settings.
 Reproduce either run in a **new** output directory:
 
 ```sh
-.venv/bin/python training/train.py --out training/runs/zero-walls-repeat \
+.venv/bin/python training/train.py --out experiments/training/zero-walls-repeat \
   --iterations 20 --games 32 --parallel-games 32 --batch-size 128 \
   --updates 32 --simulations 64 --walls 0 --curriculum none \
   --eval-games 20 --eval-every 5 --heldout-games 20 \
@@ -38,7 +38,7 @@ Reproduce either run in a **new** output directory:
 # Repeat with --walls 2 and a different output directory.
 
 .venv/bin/python training/diagnose.py \
-  training/runs/diagnostic-zero-walls training/runs/diagnostic-two-walls
+  experiments/training/diagnostic-zero-walls experiments/training/diagnostic-two-walls
 ```
 
 ## Findings in the existing runs
@@ -100,7 +100,7 @@ value loss averages all rows. Existing checkpoints retain the old objective
 on resume. `--negamax-value-turns learner` allows fresh control experiments.
 
 The matching 20-iteration zero-wall experiment is saved in
-`training/runs/diagnostic-zero-walls-both-values`. Negamax-trained results:
+`experiments/training/diagnostic-zero-walls-both-values`. Negamax-trained results:
 
 | Objective | Final monitoring wins | Held-out wins |
 | --- | --- | --- |

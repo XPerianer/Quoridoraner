@@ -13,7 +13,7 @@ from az import Engine, Net, START, random_opening
 
 def main():
     p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument('--out', default='training/runs/az-pipeline-benchmark.json')
+    p.add_argument('--out', default='experiments/training/az-pipeline-benchmark.json')
     p.add_argument('--device', default='cpu')
     p.add_argument('--batches', nargs='+', type=int, default=[64, 256])
     p.add_argument('--simulations', type=int, default=64)

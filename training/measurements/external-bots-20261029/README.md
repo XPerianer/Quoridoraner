@@ -20,7 +20,7 @@ and terminal winners agreed throughout.
 ## Settings
 
 - Standard 9×9 Quoridor, ten walls each; first player starts at the bottom.
-- Our checkpoint: `training/runs/az/colab/rl-model.pt`, 128 channels, ten residual
+- Our checkpoint: `experiments/training/az/colab/rl-model.pt`, 128 channels, ten residual
   blocks, 19 input planes; unchanged weights and native MCTS.
 - Our budget: 400 visits including retained visits, at least one new simulation.
 - [Gorisanson](https://github.com/gorisanson/quoridor-ai): original JavaScript
@@ -55,7 +55,7 @@ They do not establish Elo, a general win rate, or the cause of the Sigma losses.
 .venv/bin/python training/fetch_external_bots.py
 .venv/bin/python training/external_arena.py --validate
 .venv/bin/python -m unittest discover -s training -p test_external_arena.py -v
-.venv/bin/python -u training/external_arena.py --out training/runs/external-matches-repeat
+.venv/bin/python -u training/external_arena.py --out experiments/training/external-matches-repeat
 ```
 
 Pre-match random validation covered 280 positions per opponent. Scripted tests

@@ -841,7 +841,7 @@ def arguments():
 def main():
     args = arguments()
     torch.set_num_threads(1)
-    directory = args.resume or args.out or Path('training/runs') / datetime.now().strftime('%Y%m%d-%H%M%S')
+    directory = args.resume or args.out or Path('experiments/training') / datetime.now().strftime('%Y%m%d-%H%M%S')
     directory = directory.resolve()
     if args.resume and not (directory / 'latest.pt').is_file():
         raise SystemExit(f'No checkpoint in {directory}')

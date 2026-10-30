@@ -4,7 +4,7 @@
 checkpoint beat Gorisanson Strong 2–0 and lost to SigmaQuoridor 0–2, swapping
 colors. All four games ended at a goal and passed replay verification.
 
-The harness uses the final Colab checkpoint `runs/az/colab/rl-model.pt` against
+The harness uses the final Colab checkpoint `experiments/training/az/colab/rl-model.pt` against
 unmodified third-party game/search implementations. It does not use our negamax
 as a stand-in for another author's bot.
 
@@ -27,11 +27,11 @@ adapter. Network weights are not retrained or adjusted for these opponents.
 ```sh
 .venv/bin/python training/fetch_external_bots.py
 .venv/bin/python training/external_arena.py --validate
-.venv/bin/python -u training/external_arena.py --out training/runs/external-matches
+.venv/bin/python -u training/external_arena.py --out experiments/training/external-matches
 ```
 
 Requires existing PyTorch/NumPy environment and Node. Downloaded sources,
-weights and their original licenses stay in ignored `training/runs/external-bots`.
+weights and their original licenses stay in ignored `experiments/training/external-bots`.
 No build or third-party installation script is run. Sigma weights are loaded
 with its restricted `weights_only=True` loader.
 

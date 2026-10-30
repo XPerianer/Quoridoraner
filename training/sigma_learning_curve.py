@@ -6,7 +6,8 @@ import sys
 import time
 
 HERE = Path(__file__).resolve().parent
-OUT = HERE / 'runs/sigma-learning-curve'
+RUNS = HERE.parent / 'experiments/training'
+OUT = RUNS / 'sigma-learning-curve'
 MODELS = {'pretrained': 'pre-model.pt', 'rl10': 'rl-model-it10.pt', 'rl40': 'rl-model.pt'}
 
 
@@ -35,7 +36,7 @@ if __name__ == '__main__':
     for name, model in MODELS.items():
         log = (OUT / f'{name}.log').open('a')
         command = [sys.executable, '-u', str(HERE / 'external_arena.py'), '--opponents', 'sigma',
-                   '--model', str(HERE / 'runs/az/colab' / model), '--pairs', '50',
+                   '--model', str(RUNS / 'az/colab' / model), '--pairs', '50',
                    '--seed', '20261030', '--simulations', '400', '--sigma-sims', '400',
                    '--resume', '--out', str(OUT / name)]
         jobs.append((name, subprocess.Popen(command, stdout=log, stderr=subprocess.STDOUT), log))

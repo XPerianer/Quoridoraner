@@ -22,9 +22,9 @@ live terminal dashboard, timed resumable checkpoints, batched inference, and CLI
 
 ```sh
 .venv/bin/python -m pip install -r training/requirements.txt
-.venv/bin/python training/train.py --out training/runs/quick
+.venv/bin/python training/train.py --out experiments/training/quick
 # Ctrl-C saves and pauses; continue with:
-.venv/bin/python training/train.py --resume training/runs/quick
+.venv/bin/python training/train.py --resume experiments/training/quick
 ```
 
 See [the training guide](training/README.md) for setup, settings, and how to play
@@ -83,7 +83,7 @@ npm run dashboard
 
 Open **http://127.0.0.1:8765**. This builds the frontend and starts a local Python
 server using the existing `.venv` training dependencies. Training runs under
-`training/runs` are discovered automatically, including nested run directories.
+`experiments/training` are discovered automatically, including nested run directories.
 Select runs to compare evaluation scores, goal rates, policy/value losses, and
 saved configuration/performance. Saved metrics refresh every 15 seconds; older
 runs without `summary.json` are summarized from `metrics.json`.

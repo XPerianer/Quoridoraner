@@ -5,7 +5,7 @@ Plays engine configurations against a baseline and measures the Elo difference.
 ```sh
 npm run selfplay -- selfplay/experiments/wall-weight.json             # run an experiment
 npm run selfplay -- selfplay/experiments/smoke.json --pairs 2          # override pair count
-npm run selfplay:report -- selfplay/results/<run-dir>                  # rebuild report from saved games
+npm run selfplay:report -- experiments/selfplay/<run-dir>                  # rebuild report from saved games
 ```
 
 ## Command-line options
@@ -15,7 +15,7 @@ npm run selfplay:report -- selfplay/results/<run-dir>                  # rebuild
 | `<experiment.json>` | required | Experiment config (see below) |
 | `--pairs N` | config value | Opening pairs per candidate (each pair = 2 games, colours swapped) |
 | `--concurrency N` | CPU cores − 1 | Games played in parallel (worker threads) |
-| `--out DIR` | `selfplay/results` | Parent folder for run directories |
+| `--out DIR` | `experiments/selfplay` | Parent folder for run directories |
 
 ## Experiment config
 
@@ -52,7 +52,7 @@ To add a new hyperparameter: add it to `SearchOptions` and `DEFAULT_OPTIONS`, us
 
 ## Outputs
 
-Each run writes `selfplay/results/<timestamp>-<name>/`:
+Each run writes `experiments/selfplay/<timestamp>-<name>/`:
 
 - `config.json`: the config, every engine's fully resolved parameters, git commit and whether the tree was dirty
 - `games.jsonl`: one line per finished game (players, opening, every move with depth / nodes / score / time, result, termination), appended as games finish, so an interrupted run keeps its games

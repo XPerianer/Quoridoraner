@@ -275,7 +275,7 @@ def main():
     parser.add_argument('--out',type=Path,required=True)
     parser.add_argument('--architectures', nargs='+', choices=ARCHITECTURES,
                         default=['small', 'residual32', 'residual64'])
-    parser.add_argument('--source',type=Path,default=ROOT/'training/runs/both-values-full-curriculum/latest.pt')
+    parser.add_argument('--source',type=Path,default=ROOT/'experiments/training/both-values-full-curriculum/latest.pt')
     parser.add_argument('--device',choices=['cpu','mps','cuda'],default='mps')
     parser.add_argument('--seeds',type=int,nargs='+',default=[1,2])
     parser.add_argument('--updates',type=int,default=500)

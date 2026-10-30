@@ -9,7 +9,7 @@ PUCT search is the strongest combination. The final run keeps PUCT (`colab_az.sh
 ## Setup
 
 Three arms, one Colab L4 each (`training/colab_gumbel.sh <arm> 75 ...`), same starting point and settings:
-A100 pretrained 128×10 model (`runs/az/colab/pre-model.pt`), the `colab_az.sh` RL settings (2,048 games
+A100 pretrained 128×10 model (`experiments/training/az/colab/pre-model.pt`), the `colab_az.sh` RL settings (2,048 games
 per iteration, half against negamax-2000, batch 1,024, lr 3e-4, replay 600k with a quarter seeded from 30k
 regenerated negamax games, reuse 4). Each arm stopped starting iterations after **75 minutes of self-play
 and training** (`--budget-minutes 75`, in-run evaluations excluded).
@@ -75,4 +75,4 @@ Gumbel-search head-to-heads use the interior selector of the Gumbel arm involved
 - 75 minutes is shorter than a final run; differences that appear only later in training would not show.
 
 `results.json` holds every evaluation file and each arm's config and per-iteration metrics. Models and
-logs: `training/runs/az/gumbel/` (not tracked).
+logs: `experiments/training/az/gumbel/` (not tracked).

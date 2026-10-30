@@ -174,8 +174,8 @@ Reproduce the fitting and timed tests:
 
 ```sh
 .venv/bin/python training/benchmark_depth.py \
-  --out training/runs/depth-comparison-repeat \
-  --source training/runs/both-values-full-curriculum/latest.pt \
+  --out experiments/training/depth-comparison-repeat \
+  --source experiments/training/both-values-full-curriculum/latest.pt \
   --device mps --seeds 1 2 --updates 500 --seconds 120
 ```
 
@@ -183,8 +183,8 @@ Then the direct matches:
 
 ```sh
 .venv/bin/python training/benchmark_depth.py --phase matches \
-  --trained-runs training/runs/depth-comparison-repeat \
-  --out training/runs/depth-matches-repeat --device mps --seeds 1 2 --eval-games 20
+  --trained-runs experiments/training/depth-comparison-repeat \
+  --out experiments/training/depth-matches-repeat --device mps --seeds 1 2 --eval-games 20
 ```
 
 The timed-run checkpoints are intentionally paused; their large iteration
