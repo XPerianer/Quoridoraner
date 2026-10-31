@@ -95,7 +95,11 @@ uses Python object deserialization).
 self-play and training, with `iteration`, `spent_seconds` and cumulative `totals` (games,
 positions, steps, policy rows), plus `metrics.json`. `--snapshot-state` also keeps
 `state-hHHH-itNNNNN.pt.gz`, the full resumable state, gzipped (level 1). Snapshots are written
-before `state.pt`, so a crash in between rewrites them. Measured with 40/400 playout caps:
+before `state.pt`, so a crash in between rewrites them. A fresh run also keeps the starting network as
+`model-h000-it00000.pt`. `--latest-minutes` (default 20) refreshes the overwritten
+`state-latest.pt.gz` in between. `--prev-eval-pairs N` plays each kept model against the previous
+kept one (2N paired games on held-out openings at `--eval-simulations`) and stores `prev_eval` in
+that iteration's metrics row; it is excluded from the budget. The negamax eval saturates early. Measured with 40/400 playout caps:
 replay rows compress from 460 to ~15 bytes, so a snapshot with 2,048 games and 600k rows is
 ~13 MB model plus ~55 MB state, against ~330 MB uncompressed `state.pt`.
 

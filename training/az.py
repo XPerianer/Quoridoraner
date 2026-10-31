@@ -1201,6 +1201,11 @@ def cmd_rl(args):
                 replay.add(data.position[i], data.repetitions[i], data.remaining[i],
                            data.policy[i] if data.has_policy[i] else None, data.value[i])
         (out / 'config.json').write_text(json.dumps(settings(args), indent=1))
+        if args.snapshot_dir:
+            # Hour-0 anchor: the starting network, the opponent of the first previous-snapshot match.
+            Path(args.snapshot_dir).mkdir(parents=True, exist_ok=True)
+            save_model(model, Path(args.snapshot_dir) / 'model-h000-it00000.pt', iteration=0, spent_seconds=0,
+                       totals=dict(games=0, positions=0, steps=0, policy_rows=0))
     if device == 'cuda':
         # About 25% faster training steps on an L4; parameters keep their identity.
         model.to(memory_format=torch.channels_last)
@@ -1331,6 +1336,18 @@ def cmd_rl(args):
             if hourly:
                 totals = {key: sum(r.get(key, 0) for r in metrics) for key in ('games', 'positions', 'steps', 'policy_rows')}
                 save_model(model, snapshots / f'model-{name}.pt', iteration=iteration, spent_seconds=spent(), totals=totals)
+                previous = sorted(p for p in snapshots.glob('model-h*.pt') if p.stem < f'model-{name}')
+                if args.prev_eval_pairs and previous:
+                    # Head-to-head against the previous kept model, once negamax evals saturate.
+                    t1 = time.time()
+                    opponent, _ = load_model(previous[-1], device)
+                    engine.configure(args.cpuct, args.fpu, **search_settings(args, args.eval_search))
+                    row['prev_eval'] = head_to_head(engine, model, opponent, device, args.prev_eval_pairs,
+                                                    args.eval_simulations)
+                    engine.configure(args.cpuct, args.fpu, **search_settings(args))
+                    row['prev_eval'].update(opponent=previous[-1].stem, search=args.eval_search,
+                                            seconds=time.time() - t1)
+                    print('prev_eval', json.dumps(row['prev_eval']), flush=True)
                 if args.snapshot_state:
                     temporary = snapshots / f'state-{name}.pt.gz.{os.getpid()}.tmp'
                     shutil.copyfile(snapshots / 'state-latest.pt.gz', temporary)
@@ -1470,6 +1487,8 @@ def main():
                    help='Snapshots also keep the full gzipped resumable state (replay, optimizer, games, trees)')
     p.add_argument('--latest-minutes', type=float, default=20,
                    help='With --snapshot-state, also refresh state-latest.pt.gz this often (overwritten, not kept)')
+    p.add_argument('--prev-eval-pairs', type=int, default=0,
+                   help='At each kept snapshot, paired games against the previous kept model (heldout openings)')
     p.add_argument('--resume-from', help='Archived state(.pt.gz) to start --out from when it has no state.pt')
     search(p)
     p.add_argument('--eval-search', choices=('puct', 'gumbel'), default='puct', help='Search for in-run evaluations')

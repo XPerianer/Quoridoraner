@@ -84,6 +84,24 @@ class PipelineTest(unittest.TestCase):
             for name in a['replay']['data']:
                 np.testing.assert_array_equal(a['replay']['data'][name], b['replay']['data'][name])
 
+    def test_snapshots_play_the_previous_model(self):
+        script = Path(__file__).with_name('az.py')
+        with tempfile.TemporaryDirectory() as directory:
+            out, snapshots = Path(directory) / 'rl', Path(directory) / 'snapshots'
+            subprocess.run([sys.executable, str(script), 'rl', '--device', 'cpu', '--workers', '1',
+                            '--channels', '8', '--blocks', '1', '--games', '2', '--simulations', '4',
+                            '--max-plies', '4', '--replay', '32', '--batch-size', '4', '--reuse', '1',
+                            '--negamax-fraction', '0', '--eval-every', '0', '--max-opening', '0',
+                            '--iterations', '2', '--eval-simulations', '4', '--out', str(out),
+                            '--snapshot-dir', str(snapshots), '--snapshot-minutes', '1e-6', '--prev-eval-pairs', '1'],
+                           check=True, capture_output=True, text=True)
+            self.assertEqual(sorted(p.name for p in snapshots.glob('model-*.pt')),
+                             ['model-h000-it00000.pt', 'model-h000-it00001.pt', 'model-h000-it00002.pt'])
+            metrics = json.loads((snapshots / 'metrics.json').read_text())
+            self.assertEqual([row['prev_eval']['opponent'] for row in metrics],
+                             ['model-h000-it00000', 'model-h000-it00001'])
+            self.assertEqual(metrics[0]['prev_eval']['games'], 2)
+
     def test_lost_process_recovers_inflight_checkpoint(self):
         script = Path(__file__).with_name('az.py')
         with tempfile.TemporaryDirectory() as directory:
