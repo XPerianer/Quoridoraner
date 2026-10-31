@@ -89,6 +89,22 @@ in a fresh process; different GPU kernels/batch shapes or devices may round
 outputs differently. Only load checkpoints you trust (the existing Torch loader
 uses Python object deserialization).
 
+## Hourly snapshots (`colab_final.sh`)
+
+`--snapshot-dir D` keeps `model-hHHH-itNNNNN.pt` every `--snapshot-minutes` (default 60) of
+self-play and training, with `iteration`, `spent_seconds` and cumulative `totals` (games,
+positions, steps, policy rows), plus `metrics.json`. `--snapshot-state` also keeps
+`state-hHHH-itNNNNN.pt.gz`, the full resumable state, gzipped (level 1). Snapshots are written
+before `state.pt`, so a crash in between rewrites them. Measured with 40/400 playout caps:
+replay rows compress from 460 to ~15 bytes, so a snapshot with 2,048 games and 600k rows is
+~13 MB model plus ~55 MB state, against ~330 MB uncompressed `state.pt`.
+
+`rl --resume-from state-….pt.gz --out NEW` starts `NEW` from a snapshot (only when `NEW` has
+no `state.pt`); on CPU the next iteration is bitwise identical to the original run. The live
+state stays on the VM disk: rewriting ~330 MB on Drive every iteration is slow and replaced
+versions may count against the quota. A replacement VM resumes from the newest Drive snapshot and loses at
+most one snapshot period.
+
 ## Measured results
 
 [Profile of the full `rl` loop on one L4](measurements/l4-pipeline-profile-20261029/README.md),

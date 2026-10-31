@@ -12,6 +12,7 @@ import copy
 import ctypes as C
 import json
 import fcntl
+import gzip
 import math
 import os
 from pathlib import Path
@@ -479,7 +480,12 @@ def atomic_save(state, path):
     path = Path(path)
     temporary = path.with_name(path.name + f'.{os.getpid()}.tmp')
     with temporary.open('wb') as stream:
-        torch.save(state, stream)
+        if path.suffix == '.gz':
+            # Archived snapshots only: replay policy rows are mostly zeros and compress well.
+            with gzip.GzipFile(fileobj=stream, mode='wb', compresslevel=1, mtime=0) as packed:
+                torch.save(state, packed)
+        else:
+            torch.save(state, stream)
         stream.flush()
         os.fsync(stream.fileno())
     os.replace(temporary, path)
@@ -1136,15 +1142,28 @@ def cmd_rl(args):
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
     state_path = out / 'state.pt'
+    if not state_path.exists() and args.resume_from:
+        # Start a new run directory from an archived snapshot (e.g. state-h012-it00456.pt.gz).
+        temporary = state_path.with_name(state_path.name + f'.{os.getpid()}.tmp')
+        with (gzip.open if args.resume_from.endswith('.gz') else open)(args.resume_from, 'rb') as source, \
+                temporary.open('wb') as target:
+            shutil.copyfileobj(source, target, 1 << 24)
+            target.flush()
+            os.fsync(target.fileno())
+        os.replace(temporary, state_path)
+        print(f'restored {args.resume_from}', flush=True)
     if state_path.exists():
         model, saved = load_model(state_path, device)
         iteration, metrics = saved['iteration'], saved['metrics']
         if 'args' in saved:
             if '--iterations' not in sys.argv:
                 args.iterations = saved['args']['iterations']
+            if '--budget-minutes' not in sys.argv:
+                args.budget_minutes = saved['args'].get('budget_minutes', 0)
             # Runs saved before Gumbel search existed used PUCT, whatever the command line says.
             for key, value in (SEARCH_DEFAULTS | dict(eval_search='puct') | saved['args']).items():
-                if key not in ('fn', 'device', 'workers', 'out', 'iterations', 'checkpoint_seconds'):
+                if key not in ('fn', 'device', 'workers', 'out', 'iterations', 'checkpoint_seconds', 'budget_minutes',
+                               'snapshot_dir', 'snapshot_minutes', 'snapshot_state', 'latest_minutes', 'resume_from'):
                     setattr(args, key, value)
         # Checkpoints predating the RL ablations resolve to historical defaults,
         # regardless of new command-line options supplied during resume.
@@ -1296,6 +1315,28 @@ def cmd_rl(args):
         metrics.append(row)
         print(json.dumps(row), flush=True)
         games = carried
+        def crossed(minutes):
+            period = 60 * minutes
+            return bool(period) and int(spent() // period) > int((spent() - row['seconds']) // period)
+        hourly, latest = crossed(args.snapshot_minutes), args.snapshot_state and crossed(args.latest_minutes)
+        if args.snapshot_dir and (hourly or latest):
+            # Written before state.pt: a crash in between replays this iteration and rewrites them.
+            snapshots = Path(args.snapshot_dir)
+            snapshots.mkdir(parents=True, exist_ok=True)
+            name = f'h{int(spent() // 3600):03d}-it{iteration:05d}'
+            if args.snapshot_state:
+                # state-latest is never older than the newest kept state, so a new VM can always resume from it.
+                save_rl_state(snapshots / 'state-latest.pt.gz', model, optimizer, replay, iteration, metrics, args,
+                              rng, nprng, games=games, engine=engine, scheduler=scheduler)
+            if hourly:
+                totals = {key: sum(r.get(key, 0) for r in metrics) for key in ('games', 'positions', 'steps', 'policy_rows')}
+                save_model(model, snapshots / f'model-{name}.pt', iteration=iteration, spent_seconds=spent(), totals=totals)
+                if args.snapshot_state:
+                    temporary = snapshots / f'state-{name}.pt.gz.{os.getpid()}.tmp'
+                    shutil.copyfile(snapshots / 'state-latest.pt.gz', temporary)
+                    os.replace(temporary, snapshots / f'state-{name}.pt.gz')
+            (snapshots / 'metrics.json').write_text(json.dumps(metrics, indent=1))
+            print(f'snapshot {name}' + ('' if hourly else ' (latest only)'), flush=True)
         save_model(model, out / 'model.pt', iteration=iteration)
         save_rl_state(state_path, model, optimizer, replay, iteration, metrics, args, rng, nprng,
                       games=games, engine=engine, scheduler=scheduler)
@@ -1422,6 +1463,14 @@ def main():
     p.add_argument('--checkpoint-seconds', type=float, default=60, help='In-flight move-boundary checkpoint cadence')
     p.add_argument('--budget-minutes', type=float, default=0,
                    help='Also stop once self-play and training (not evaluation) have taken this long')
+    p.add_argument('--snapshot-dir', help='Keep a copy of the model here every --snapshot-minutes')
+    p.add_argument('--snapshot-minutes', type=float, default=60,
+                   help='Self-play and training minutes (evaluations excluded) between snapshots')
+    p.add_argument('--snapshot-state', action='store_true',
+                   help='Snapshots also keep the full gzipped resumable state (replay, optimizer, games, trees)')
+    p.add_argument('--latest-minutes', type=float, default=20,
+                   help='With --snapshot-state, also refresh state-latest.pt.gz this often (overwritten, not kept)')
+    p.add_argument('--resume-from', help='Archived state(.pt.gz) to start --out from when it has no state.pt')
     search(p)
     p.add_argument('--eval-search', choices=('puct', 'gumbel'), default='puct', help='Search for in-run evaluations')
     p.set_defaults(fn=cmd_rl)
