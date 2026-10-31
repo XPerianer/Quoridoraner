@@ -1,0 +1,68 @@
+[
+  {
+    "optimizer": "adamw",
+    "repeat": 0,
+    "steps": 200,
+    "seconds": 13.086255678000043,
+    "milliseconds_per_step": 65.43127839000022,
+    "losses": {
+      "policy": 0.16309737075120212,
+      "value": 0.5106071566045284
+    }
+  },
+  {
+    "optimizer": "muon",
+    "repeat": 0,
+    "steps": 200,
+    "seconds": 13.864561409000089,
+    "milliseconds_per_step": 69.32280704500045,
+    "losses": {
+      "policy": 0.16107951149344443,
+      "value": 0.5089736287295819
+    }
+  },
+  {
+    "optimizer": "muon",
+    "repeat": 1,
+    "steps": 200,
+    "seconds": 14.006584758000145,
+    "milliseconds_per_step": 70.03292379000072,
+    "losses": {
+      "policy": 0.16107951149344443,
+      "value": 0.5089736287295819
+    }
+  },
+  {
+    "optimizer": "adamw",
+    "repeat": 1,
+    "steps": 200,
+    "seconds": 13.314347712999961,
+    "milliseconds_per_step": 66.5717385649998,
+    "losses": {
+      "policy": 0.16309737075120212,
+      "value": 0.5106071566045284
+    }
+  },
+  {
+    "optimizer": "adamw",
+    "repeat": 2,
+    "steps": 200,
+    "seconds": 13.434029881000015,
+    "milliseconds_per_step": 67.17014940500007,
+    "losses": {
+      "policy": 0.16309737075120212,
+      "value": 0.5106071566045284
+    }
+  },
+  {
+    "optimizer": "muon",
+    "repeat": 2,
+    "steps": 200,
+    "seconds": 14.09118466200016,
+    "milliseconds_per_step": 70.4559233100008,
+    "losses": {
+      "policy": 0.16107951149344443,
+      "value": 0.5089736287295819
+    }
+  }
+]

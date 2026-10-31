@@ -33,6 +33,15 @@ START = (0, 0, 76 | (4 << 7) | (10 << 14) | (10 << 18))
 MOVES = 209
 
 
+def playout_budget(rng, mode, fallback):
+    """Game-stream budget draw; fixed mode consumes no randomness for exact legacy parity."""
+    if mode == 'fixed':
+        return fallback
+    if mode == 'randomized-40-400':
+        return 400 if rng.random() < 0.25 else 40
+    raise ValueError(f'Unknown playout cap {mode!r}')
+
+
 # ---------------------------------------------------------------- engine
 
 def build():
@@ -70,12 +79,13 @@ def with_walls(position, walls):
 
 # Search settings saved with runs; checkpoints without them resolve to PUCT.
 SEARCH_DEFAULTS = dict(search='puct', gumbel_interior='puct', gumbel_candidates=16, gumbel_scale=1.0,
-                       gumbel_value_scale=0.1, gumbel_maxvisit_init=50.0, gumbel_rescale_values=True)
+                       gumbel_value_scale=0.1, gumbel_maxvisit_init=50.0, gumbel_rescale_values=True,
+                       race_solver='legacy', race_depth=100, race_nodes=2048)
 
 
 class Engine:
     def __init__(self, workers=None, cpuct=1.5, fpu=0.25, **search):
-        sources = [NATIVE / 'az.cpp', NATIVE / 'engine.hpp']
+        sources = [NATIVE / 'az.cpp', NATIVE / 'engine.hpp', NATIVE / 'race_tablebase.hpp']
         if not LIBRARY.exists() or any(s.stat().st_mtime > LIBRARY.stat().st_mtime for s in sources):
             build()
         lib = self.lib = C.CDLL(str(LIBRARY))
@@ -83,7 +93,8 @@ class Engine:
         for name, (result, args) in {
             'az_snapshot': (I, [P, P, I]), 'az_restore': (I, [P, P, I]),
             'az_create': (P, [I]), 'az_destroy': (None, [P]), 'az_error': (C.c_char_p, []), 'az_planes': (I, []),
-            'az_settings': (I, [P, C.c_double, C.c_double, I, I, I, C.c_double, C.c_double, C.c_double, I]),
+            'az_settings': (I, [P, C.c_double, C.c_double, I, I, I, C.c_double, C.c_double, C.c_double,
+                                I, I, I, I]),
             'az_clear': (I, [P]), 'az_drop': (I, [P, I]),
             'az_legal': (I, [P, P]), 'az_distances': (I, [P, P]), 'az_advance': (I, [P, I, P, P, P, P]),
             'az_history': (I, [P, I, P, P, I]),
@@ -93,6 +104,7 @@ class Engine:
             'az_finished': (I, [P, P]), 'az_take': (I, [P, P, I, P, P, P]), 'az_cache': (I, [P, C.c_int64]),
             'az_cache_clear': (I, [P]), 'az_stats': (I, [P, P]), 'az_negamax': (I, [P, P, I, P, P]),
             'az_considered_visits': (I, [I, I, P]), 'az_root_visits': (I, [P, I, P]),
+            'az_race_solve': (I, [P, I, I, I, I, P, P, I, P]),
         }.items():
             fn = getattr(lib, name)
             fn.restype, fn.argtypes = result, args
@@ -131,7 +143,8 @@ class Engine:
         self.check(self.lib.az_settings(self.pool, cpuct, fpu, s['search'] == 'gumbel',
                                         s['gumbel_interior'] == 'completed-q', s['gumbel_candidates'],
                                         s['gumbel_scale'], s['gumbel_value_scale'], s['gumbel_maxvisit_init'],
-                                        bool(s['gumbel_rescale_values'])))
+                                        bool(s['gumbel_rescale_values']), {'legacy': 0, 'exact': 1, 'tablebase': 2}[s['race_solver']],
+                                        s['race_depth'], s['race_nodes']))
         self.cpuct, self.fpu = cpuct, fpu
 
     def close(self):
@@ -170,6 +183,15 @@ class Engine:
         out = np.empty(2, np.int32)
         self.check(self.lib.az_distances(ptr(np.asarray(position, np.uint64)), ptr(out)))
         return int(out[0]), int(out[1])
+
+    def solve_race(self, position, history, ply, max_plies, depth=100, node_cap=2048):
+        """Bounded proof result: 1 win, 0 draw, -1 loss, 2 unknown; respects history and cutoff."""
+        keys = np.asarray(list(history), np.uint64).reshape(-1, 3)
+        counts = np.asarray(list(history.values()), np.int32)
+        out = np.empty(3, np.int64)
+        self.check(self.lib.az_race_solve(ptr(np.asarray(position, np.uint64)), ply, max_plies, depth, node_cap,
+                                          ptr(keys), ptr(counts), len(counts), ptr(out)))
+        return tuple(map(int, out))
 
     def advance(self, position, move, tree=-1):
         return tuple(self.advance_many([tree], [position], [move])[0])
@@ -293,11 +315,15 @@ class Engine:
         start = time.perf_counter()
         self.check(self.lib.az_evaluate(self.pool, group, ptr(probabilities), ptr(values), k))
         self.stats['search_seconds'] += time.perf_counter() - start
-        out = np.empty(4, np.int64)
+        self.sync_stats()
+
+    def sync_stats(self):
+        out = np.empty(9, np.int64)
         self.check(self.lib.az_stats(self.pool, ptr(out)))
-        hits, duplicates, unique, waves = out.tolist()
+        hits, duplicates, unique, waves, race_queries, race_solved, race_unknown, race_nodes, race_ns = out.tolist()
         self.stats.update(cache_hits=hits + duplicates, unique_evaluations=unique, waves=waves,
-                          leaves=hits + duplicates + unique)
+                          leaves=hits + duplicates + unique, race_queries=race_queries, race_solved=race_solved,
+                          race_unknown=race_unknown, race_nodes=race_nodes, race_seconds=race_ns / 1e9)
 
     def step(self, device):
         """One synchronous wave of group 0; returns its row count (0 once every search is finished)."""
@@ -319,6 +345,7 @@ class Engine:
         policies, roots, moves = np.empty((n, MOVES), np.float32), np.empty(n, np.float32), np.empty(n, np.int32)
         self.check(self.lib.az_take(self.pool, ptr(np.asarray(slots, np.int32)), n, ptr(policies), ptr(roots),
                                     ptr(moves)))
+        self.sync_stats()
         if n and self.search_settings['search'] == 'gumbel':
             # Diagnostics: entropy of the improved policy targets.
             p = policies.astype(np.float64)
@@ -536,7 +563,7 @@ class Replay:
         return replay
 
 
-def train_steps(model, optimizer, replay, engine, steps, batch_size, device, rng, value_weight=1.0):
+def train_steps(model, optimizer, replay, engine, steps, batch_size, device, rng, value_weight=1.0, scheduler=None):
     model.train()
     totals = dict(policy=0.0, value=0.0)
     for _ in range(steps):
@@ -561,6 +588,8 @@ def train_steps(model, optimizer, replay, engine, steps, batch_size, device, rng
         (policy_loss + value_weight * value_loss).backward()
         nn.utils.clip_grad_norm_(model.parameters(), 5)
         optimizer.step()
+        if scheduler is not None:
+            scheduler.step()
         totals['policy'] += policy_loss.item()
         totals['value'] += value_loss.item()
     model.eval()
@@ -615,7 +644,8 @@ class Game:
 
 
 def play(engine, model, games, device, simulations, max_plies=100, noise=False, temperature_plies=0,
-         rng=None, progress=None, resume=False, checkpoint=None, spawn=None, until=None):
+         rng=None, progress=None, resume=False, checkpoint=None, spawn=None, until=None,
+         playout_cap='fixed'):
     """Advance all games to completion; negamax turns use the C++ thread pool.
 
     With a single network, every game starts its next search as soon as its own move
@@ -653,8 +683,21 @@ def play(engine, model, games, device, simulations, max_plies=100, noise=False, 
 
     def record(g, policy):
         if g.record:
+            if getattr(g, 'value_only_cap', False):
+                policy = None  # Low-cap searches train value only; policy targets use the 400-cap cohort.
+            if policy is not None:
+                g.policy_rows = getattr(g, 'policy_rows', 0) + 1
+            else:
+                g.value_only_rows = getattr(g, 'value_only_rows', 0) + 1
             g.samples.append([g.position, g.history.get(g.position, 1), (max_plies - g.ply) / max_plies,
                               policy, turn(g.position)])
+
+    def budget(g):
+        selected = playout_budget(g.rng, playout_cap, simulations)
+        g.value_only_cap = playout_cap == 'randomized-40-400' and selected == 40
+        counts = g.playout_counts = getattr(g, 'playout_counts', {'40': 0, '400': 0})
+        counts[str(selected)] = counts.get(str(selected), 0) + 1
+        return selected
 
     gumbel = engine.search_settings['search'] == 'gumbel'
 
@@ -720,9 +763,15 @@ def play(engine, model, games, device, simulations, max_plies=100, noise=False, 
             waiting = [g for g in active if network(g) is None]
             still = advance(replied(waiting, engine.negamax([g.position for g in waiting], [g.to_move()[1] for g in waiting])))
             for group in groups.values():
-                policies, _, moves = engine.search(network(group[0]), [job(g) | dict(history=g.history) for g in group],
-                                                   simulations, device, moves=True)
-                still += advance([(g, searched(g, pi, m)) for g, pi, m in zip(group, policies, moves)])
+                by_budget = {}
+                for g in group:
+                    g.current_budget = budget(g)
+                    by_budget.setdefault(g.current_budget, []).append(g)
+                for b, batch in by_budget.items():
+                    policies, _, moves = engine.search(network(batch[0]),
+                                                       [job(g) | dict(history=g.history) for g in batch],
+                                                       b, device, moves=True)
+                    still += advance([(g, searched(g, pi, int(m))) for g, pi, m in zip(batch, policies, moves)])
             order = {g.id: i for i, g in enumerate(games)}
             active = sorted(still, key=lambda g: order[g.id])
             if progress:
@@ -766,7 +815,8 @@ def play(engine, model, games, device, simulations, max_plies=100, noise=False, 
             for g in idle:
                 if network(g) is not None:
                     member = int(size[1] < size[0])
-                    slots[engine.begin(job(g), simulations, member)] = g, member
+                    g.current_budget = budget(g)
+                    slots[engine.begin(job(g), g.current_budget, member)] = g, member
                     size[member] += 1
             idle = []
         engine.launch(group, device)
@@ -913,6 +963,96 @@ def new_optimizer(model, lr, weight_decay=1e-4):
     return torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=weight_decay)
 
 
+def new_rl_optimizer(model, lr, name='adamw', weight_decay=1e-4):
+    """Build the RL optimizer. Muon is opt-in; output heads and vector parameters use AdamW."""
+    if name == 'adamw':
+        return new_optimizer(model, lr, weight_decay)
+    if name != 'muon':
+        raise ValueError(f'Unknown optimizer {name!r}')
+    muon, adam = [], []
+    for pname, param in model.named_parameters():
+        # Keep both prediction heads on AdamW. Muon's matrix update is for the shared trunk.
+        head = pname.startswith(('policy_head.', 'value_head.'))
+        (muon if not head and param.ndim >= 2 else adam).append(param)
+    # Conv parameters are temporarily represented by the same shaped tensor. PyTorch Muon
+    # operates on matrices, so wrap it in a shape-preserving flattened parameter optimizer.
+    return MuonAdamW(model, muon, adam, lr, weight_decay)
+
+
+class MuonAdamW(torch.optim.Optimizer):
+    """Muon for trunk matrices (including flattened conv kernels), AdamW otherwise."""
+    def __init__(self, model, muon_params, adam_params, lr, weight_decay):
+        super().__init__([{'params': muon_params}, {'params': adam_params}], dict(lr=lr, weight_decay=weight_decay))
+        self.model_muon_params = list(muon_params)
+        self.flat_params = [nn.Parameter(p.detach().reshape(p.shape[0], -1).contiguous()) for p in muon_params]
+        self.muon_impl = torch.optim.Muon(self.flat_params, lr=lr, weight_decay=weight_decay,
+                                          adjust_lr_fn='match_rms_adamw')
+        self.adam_impl = torch.optim.AdamW(adam_params, lr=lr, weight_decay=weight_decay)
+        self.param_groups = self.muon_impl.param_groups + self.adam_impl.param_groups
+
+    def step(self, closure=None):
+        # Scheduler adapters expect a conventional optimizer.step method.
+        return self._step(closure)
+
+    def zero_grad(self, *args, **kwargs):
+        for p in self.model_muon_params:
+            p.grad = None
+        self.muon_impl.zero_grad(*args, **kwargs)
+        self.adam_impl.zero_grad(*args, **kwargs)
+
+    @torch.no_grad()
+    def _step(self, closure=None):
+        if closure is not None:
+            with torch.enable_grad():
+                loss = closure()
+        else:
+            loss = None
+        for model_p, flat_p in zip(self.model_muon_params, self.flat_params):
+            flat_p.copy_(model_p.detach().reshape(model_p.shape[0], -1))
+            if model_p.grad is None:
+                flat_p.grad = None
+            else:
+                flat_p.grad = model_p.grad.detach().reshape(model_p.shape[0], -1).contiguous().clone()
+        self.muon_impl.step()
+        for model_p, flat_p in zip(self.model_muon_params, self.flat_params):
+            model_p.copy_(flat_p.reshape_as(model_p))
+        self.adam_impl.step()
+        return loss
+
+    def state_dict(self):
+        return {'muon': self.muon_impl.state_dict(), 'adamw': self.adam_impl.state_dict()}
+
+    def load_state_dict(self, state_dict):
+        self.muon_impl.load_state_dict(state_dict['muon'])
+        self.adam_impl.load_state_dict(state_dict['adamw'])
+        # PyTorch replaces child param group dicts on load; reconnect the scheduler view.
+        self.param_groups = self.muon_impl.param_groups + self.adam_impl.param_groups
+
+def make_rl_scheduler(optimizer, kind, total_steps, lr):
+    if kind == 'none':
+        return None
+    if kind == 'cosine':
+        horizon = max(1, total_steps)
+        floor = 0.05
+        return torch.optim.lr_scheduler.LambdaLR(
+            optimizer, lambda step: floor + (1 - floor) * 0.5 * (1 + math.cos(math.pi * min(step, horizon) / horizon)))
+    if kind == 'cosine-restarts':
+        return torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, T_0=max(1, total_steps // 4), T_mult=2,
+                                                                    eta_min=lr * 0.05)
+    raise ValueError(f'Unknown RL schedule {kind!r}')
+
+
+def restore_rl_scheduler(scheduler, state, optimizer):
+    """Restore scheduler phase and the live optimizer LR before the next gradient update."""
+    scheduler.load_state_dict(state)
+    last_lrs = state.get('_last_lr')
+    if last_lrs is not None:
+        if len(last_lrs) != len(optimizer.param_groups):
+            raise ValueError('Scheduler checkpoint does not match optimizer parameter groups')
+        for group, lr in zip(optimizer.param_groups, last_lrs):
+            group['lr'] = lr
+
+
 def cmd_pretrain(args):
     torch.manual_seed(args.seed)
     out = Path(args.out)
@@ -976,7 +1116,8 @@ def cmd_pretrain(args):
     (out / 'pretrain.json').write_text(json.dumps(dict(args=settings(args), log=log, eval=result), indent=1))
 
 
-def save_rl_state(path, model, optimizer, replay, iteration, metrics, args, rng, nprng, games=None, engine=None):
+def save_rl_state(path, model, optimizer, replay, iteration, metrics, args, rng, nprng, games=None, engine=None,
+                  scheduler=None):
     # One atomic file: a lost VM cannot mix replay from one generation with weights
     # from another. Save only live replay rows, preserving ring cursor and capacity.
     save_model(model, path, optimizer=optimizer.state_dict(), iteration=iteration, metrics=metrics,
@@ -984,7 +1125,8 @@ def save_rl_state(path, model, optimizer, replay, iteration, metrics, args, rng,
                games=[vars(g) for g in games] if games is not None else None,
                trees=engine.snapshot() if games is not None else None,
                rng=rng.getstate(), nprng=nprng.bit_generator.state, torch_rng=torch.get_rng_state(),
-               cuda_rng=torch.cuda.get_rng_state_all() if torch.cuda.is_available() else None)
+               cuda_rng=torch.cuda.get_rng_state_all() if torch.cuda.is_available() else None,
+               scheduler=scheduler.state_dict() if scheduler is not None else None)
 
 
 def cmd_rl(args):
@@ -1004,7 +1146,17 @@ def cmd_rl(args):
             for key, value in (SEARCH_DEFAULTS | dict(eval_search='puct') | saved['args']).items():
                 if key not in ('fn', 'device', 'workers', 'out', 'iterations', 'checkpoint_seconds'):
                     setattr(args, key, value)
-        optimizer = new_optimizer(model, args.lr)
+        # Checkpoints predating the RL ablations resolve to historical defaults,
+        # regardless of new command-line options supplied during resume.
+        saved_args = saved.get('args', {})
+        for key, value in {'optimizer': 'adamw', 'schedule': 'none', 'schedule_steps': 25000,
+                           'playout_cap': 'fixed'}.items():
+            if key not in saved_args:
+                setattr(args, key, value)
+        for key, value in SEARCH_DEFAULTS.items():
+            if key not in saved_args:
+                setattr(args, key, value)
+        optimizer = new_rl_optimizer(model, args.lr, args.optimizer)
         optimizer.load_state_dict(saved['optimizer'])
         if 'replay' in saved:
             replay = Replay.restore(saved['replay'])
@@ -1019,7 +1171,7 @@ def cmd_rl(args):
             model, _ = load_model(args.init, device)
         else:
             model = Net(engine.planes, args.channels, args.blocks).to(device).eval()
-        optimizer = new_optimizer(model, args.lr)
+        optimizer = new_rl_optimizer(model, args.lr, args.optimizer)
         iteration, metrics = 0, []
         replay = Replay(args.replay)
         if args.mix_data:
@@ -1033,8 +1185,12 @@ def cmd_rl(args):
     if device == 'cuda':
         # About 25% faster training steps on an L4; parameters keep their identity.
         model.to(memory_format=torch.channels_last)
-    for group in optimizer.param_groups:
-        group['lr'] = args.lr
+    if not state_path.exists():
+        for group in optimizer.param_groups:
+            group['lr'] = args.lr
+    scheduler = make_rl_scheduler(optimizer, args.schedule, args.schedule_steps, args.lr)
+    if state_path.exists() and saved.get('scheduler') is not None and scheduler is not None:
+        restore_rl_scheduler(scheduler, saved['scheduler'], optimizer)
     rng = random.Random(f'rl:{args.seed}:{iteration}')
     nprng = np.random.default_rng([args.seed, iteration])
     if state_path.exists() and 'rng' in saved:
@@ -1055,7 +1211,8 @@ def cmd_rl(args):
     else:
         # Persist the starting generation too: interruption during the first rollout
         # replays that iteration with the same weights, replay and random streams.
-        save_rl_state(state_path, model, optimizer, replay, iteration, metrics, args, rng, nprng)
+        save_rl_state(state_path, model, optimizer, replay, iteration, metrics, args, rng, nprng,
+                      scheduler=scheduler)
 
     def new_game(lane):
         """Lanes keep their opponent type, so every batch of games has the configured negamax share."""
@@ -1091,7 +1248,7 @@ def cmd_rl(args):
         def progress(done, total):
             if due():
                 save_rl_state(state_path, model, optimizer, replay, iteration - 1, metrics, args, rng, nprng,
-                              games=games, engine=engine)
+                              games=games, engine=engine, scheduler=scheduler)
                 last_save[0] = time.monotonic()
             if done - last[0] >= max(1, args.games // 8):
                 last[0] = done
@@ -1100,7 +1257,8 @@ def cmd_rl(args):
         # replaced at once, so batches stay full; games still running carry over.
         play(engine, model, games, device, args.simulations, args.max_plies, noise=True,
              temperature_plies=args.temperature_plies, rng=rng, progress=progress, resume=True,
-             checkpoint=due, spawn=lambda ended: new_game(ended.id), until=lambda: finished() >= args.games)
+             checkpoint=due, spawn=lambda ended: new_game(ended.id), until=lambda: finished() >= args.games,
+             playout_cap=args.playout_cap)
         carried = [g for g in games if g.result is None]
         games = [g for g in games if g.result is not None]
         for g in carried:
@@ -1113,7 +1271,8 @@ def cmd_rl(args):
                 rows += 1
         played = time.time() - t0
         steps = max(1, int(rows * args.reuse / args.batch_size))
-        losses = train_steps(model, optimizer, replay, engine, steps, args.batch_size, device, nprng)
+        losses = train_steps(model, optimizer, replay, engine, steps, args.batch_size, device, nprng,
+                             scheduler=scheduler)
         vs = [g for g in games if g.learner >= 0]
         selfplay = [g for g in games if g.learner < 0]
         row = dict(iteration=iteration, games=len(games), carried=len(carried), positions=rows, replay=replay.size,
@@ -1122,6 +1281,10 @@ def cmd_rl(args):
                    train_cutoffs=sum(g.result == -1 for g in games),
                    selfplay_first_wins=sum(g.result == 0 for g in selfplay),
                    mean_plies=sum(g.ply for g in games) / len(games),
+                   playout_caps={str(cap): sum(getattr(g, 'playout_counts', {}).get(str(cap), 0) for g in games)
+                                 for cap in (args.simulations, 40, 400)},
+                   policy_rows=sum(getattr(g, 'policy_rows', 0) for g in games),
+                   value_only_rows=sum(getattr(g, 'value_only_rows', 0) for g in games),
                    play_seconds=played, seconds=time.time() - t0, search_stats=dict(engine.stats))
         if args.eval_every and iteration % args.eval_every == 0:
             t1 = time.time()
@@ -1135,7 +1298,7 @@ def cmd_rl(args):
         games = carried
         save_model(model, out / 'model.pt', iteration=iteration)
         save_rl_state(state_path, model, optimizer, replay, iteration, metrics, args, rng, nprng,
-                      games=games, engine=engine)
+                      games=games, engine=engine, scheduler=scheduler)
         last_save[0] = time.monotonic()
         (out / 'metrics.json').write_text(json.dumps(metrics, indent=1))
 
@@ -1194,6 +1357,10 @@ def main():
         p.add_argument('--gumbel-maxvisit-init', type=float, default=50.0, help='c_visit of the Q transform')
         p.add_argument('--gumbel-rescale-values', action=argparse.BooleanOptionalAction, default=True,
                        help='Rescale completed Q-values to [0, 1] (mctx default)')
+        p.add_argument('--race-solver', choices=('legacy', 'exact', 'tablebase'), default='legacy',
+                       help='Zero-wall bounded proof minimax; unknown proofs continue through MCTS')
+        p.add_argument('--race-depth', type=int, default=100, help='Maximum zero-wall proof plies')
+        p.add_argument('--race-nodes', type=int, default=2048, help='Node cap per zero-wall proof query')
 
     p = sub.add_parser('gen')
     common(p)
@@ -1240,6 +1407,14 @@ def main():
     p.add_argument('--reuse', type=float, default=4.0, help='Average times each new position is sampled')
     p.add_argument('--batch-size', type=int, default=512)
     p.add_argument('--lr', type=float, default=5e-4)
+    p.add_argument('--optimizer', choices=('adamw', 'muon'), default='adamw',
+                   help='RL optimizer; Muon uses the shared trunk matrices and AdamW for heads/vectors')
+    p.add_argument('--schedule', choices=('none', 'cosine', 'cosine-restarts'), default='none',
+                   help='Optional RL learning-rate schedule, stepped once per optimizer update')
+    p.add_argument('--schedule-steps', type=int, default=25000,
+                   help='Optimizer-update horizon for cosine schedules')
+    p.add_argument('--playout-cap', choices=('fixed', 'randomized-40-400'), default='fixed',
+                   help='Randomized ablation draws 40 sims (75%%) or 400 (25%%); low-cap rows train value only')
     p.add_argument('--eval-every', type=int, default=5)
     p.add_argument('--eval-pairs', type=int, default=20)
     p.add_argument('--eval-simulations', type=int, default=200)

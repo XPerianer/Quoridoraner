@@ -1,0 +1,2834 @@
+{
+  "args": {
+    "model": "/content/ablations/playout_40_400/model.pt",
+    "opponent": "/content/ablations/baseline/model.pt",
+    "pairs": 200,
+    "simulations": 128,
+    "nodes": 32000,
+    "seed": 2028,
+    "device": "cuda",
+    "race_solver": "legacy",
+    "out": "/content/ablations/confirm-vs-baseline.json"
+  },
+  "score": 0.555,
+  "pair_bootstrap_95": [
+    0.515,
+    0.595
+  ],
+  "seconds": 47.915160738999475,
+  "search_stats": {
+    "cache_hits": 237349,
+    "unique_evaluations": 1077942,
+    "waves": 17253,
+    "leaves": 1315291,
+    "forward_seconds": 12.504509928045081,
+    "search_seconds": 25.39221720474052,
+    "race_queries": 0,
+    "race_solved": 0,
+    "race_unknown": 0,
+    "race_nodes": 0,
+    "race_seconds": 0.0
+  },
+  "games": [
+    {
+      "pair": 0,
+      "color": 0,
+      "score": 0.0,
+      "plies": 84,
+      "reason": "goal"
+    },
+    {
+      "pair": 0,
+      "color": 1,
+      "score": 0.0,
+      "plies": 55,
+      "reason": "goal"
+    },
+    {
+      "pair": 1,
+      "color": 0,
+      "score": 1.0,
+      "plies": 35,
+      "reason": "goal"
+    },
+    {
+      "pair": 1,
+      "color": 1,
+      "score": 0.0,
+      "plies": 53,
+      "reason": "goal"
+    },
+    {
+      "pair": 2,
+      "color": 0,
+      "score": 0.0,
+      "plies": 62,
+      "reason": "goal"
+    },
+    {
+      "pair": 2,
+      "color": 1,
+      "score": 1.0,
+      "plies": 62,
+      "reason": "goal"
+    },
+    {
+      "pair": 3,
+      "color": 0,
+      "score": 1.0,
+      "plies": 45,
+      "reason": "goal"
+    },
+    {
+      "pair": 3,
+      "color": 1,
+      "score": 0.0,
+      "plies": 63,
+      "reason": "goal"
+    },
+    {
+      "pair": 4,
+      "color": 0,
+      "score": 1.0,
+      "plies": 67,
+      "reason": "goal"
+    },
+    {
+      "pair": 4,
+      "color": 1,
+      "score": 0.0,
+      "plies": 65,
+      "reason": "goal"
+    },
+    {
+      "pair": 5,
+      "color": 0,
+      "score": 1.0,
+      "plies": 57,
+      "reason": "goal"
+    },
+    {
+      "pair": 5,
+      "color": 1,
+      "score": 0.0,
+      "plies": 61,
+      "reason": "goal"
+    },
+    {
+      "pair": 6,
+      "color": 0,
+      "score": 1.0,
+      "plies": 43,
+      "reason": "goal"
+    },
+    {
+      "pair": 6,
+      "color": 1,
+      "score": 0.0,
+      "plies": 83,
+      "reason": "goal"
+    },
+    {
+      "pair": 7,
+      "color": 0,
+      "score": 0.0,
+      "plies": 54,
+      "reason": "goal"
+    },
+    {
+      "pair": 7,
+      "color": 1,
+      "score": 1.0,
+      "plies": 70,
+      "reason": "goal"
+    },
+    {
+      "pair": 8,
+      "color": 0,
+      "score": 0.0,
+      "plies": 42,
+      "reason": "goal"
+    },
+    {
+      "pair": 8,
+      "color": 1,
+      "score": 1.0,
+      "plies": 66,
+      "reason": "goal"
+    },
+    {
+      "pair": 9,
+      "color": 0,
+      "score": 0.0,
+      "plies": 64,
+      "reason": "goal"
+    },
+    {
+      "pair": 9,
+      "color": 1,
+      "score": 0.0,
+      "plies": 65,
+      "reason": "goal"
+    },
+    {
+      "pair": 10,
+      "color": 0,
+      "score": 1.0,
+      "plies": 45,
+      "reason": "goal"
+    },
+    {
+      "pair": 10,
+      "color": 1,
+      "score": 1.0,
+      "plies": 60,
+      "reason": "goal"
+    },
+    {
+      "pair": 11,
+      "color": 0,
+      "score": 0.0,
+      "plies": 72,
+      "reason": "goal"
+    },
+    {
+      "pair": 11,
+      "color": 1,
+      "score": 0.0,
+      "plies": 81,
+      "reason": "goal"
+    },
+    {
+      "pair": 12,
+      "color": 0,
+      "score": 1.0,
+      "plies": 55,
+      "reason": "goal"
+    },
+    {
+      "pair": 12,
+      "color": 1,
+      "score": 0.0,
+      "plies": 53,
+      "reason": "goal"
+    },
+    {
+      "pair": 13,
+      "color": 0,
+      "score": 1.0,
+      "plies": 33,
+      "reason": "goal"
+    },
+    {
+      "pair": 13,
+      "color": 1,
+      "score": 0.0,
+      "plies": 37,
+      "reason": "goal"
+    },
+    {
+      "pair": 14,
+      "color": 0,
+      "score": 1.0,
+      "plies": 43,
+      "reason": "goal"
+    },
+    {
+      "pair": 14,
+      "color": 1,
+      "score": 1.0,
+      "plies": 62,
+      "reason": "goal"
+    },
+    {
+      "pair": 15,
+      "color": 0,
+      "score": 1.0,
+      "plies": 41,
+      "reason": "goal"
+    },
+    {
+      "pair": 15,
+      "color": 1,
+      "score": 0.0,
+      "plies": 53,
+      "reason": "goal"
+    },
+    {
+      "pair": 16,
+      "color": 0,
+      "score": 0.0,
+      "plies": 58,
+      "reason": "goal"
+    },
+    {
+      "pair": 16,
+      "color": 1,
+      "score": 1.0,
+      "plies": 68,
+      "reason": "goal"
+    },
+    {
+      "pair": 17,
+      "color": 0,
+      "score": 1.0,
+      "plies": 29,
+      "reason": "goal"
+    },
+    {
+      "pair": 17,
+      "color": 1,
+      "score": 0.0,
+      "plies": 57,
+      "reason": "goal"
+    },
+    {
+      "pair": 18,
+      "color": 0,
+      "score": 0.0,
+      "plies": 50,
+      "reason": "goal"
+    },
+    {
+      "pair": 18,
+      "color": 1,
+      "score": 1.0,
+      "plies": 54,
+      "reason": "goal"
+    },
+    {
+      "pair": 19,
+      "color": 0,
+      "score": 1.0,
+      "plies": 55,
+      "reason": "goal"
+    },
+    {
+      "pair": 19,
+      "color": 1,
+      "score": 1.0,
+      "plies": 84,
+      "reason": "goal"
+    },
+    {
+      "pair": 20,
+      "color": 0,
+      "score": 0.0,
+      "plies": 56,
+      "reason": "goal"
+    },
+    {
+      "pair": 20,
+      "color": 1,
+      "score": 1.0,
+      "plies": 52,
+      "reason": "goal"
+    },
+    {
+      "pair": 21,
+      "color": 0,
+      "score": 1.0,
+      "plies": 79,
+      "reason": "goal"
+    },
+    {
+      "pair": 21,
+      "color": 1,
+      "score": 0.0,
+      "plies": 35,
+      "reason": "goal"
+    },
+    {
+      "pair": 22,
+      "color": 0,
+      "score": 1.0,
+      "plies": 47,
+      "reason": "goal"
+    },
+    {
+      "pair": 22,
+      "color": 1,
+      "score": 1.0,
+      "plies": 76,
+      "reason": "goal"
+    },
+    {
+      "pair": 23,
+      "color": 0,
+      "score": 1.0,
+      "plies": 53,
+      "reason": "goal"
+    },
+    {
+      "pair": 23,
+      "color": 1,
+      "score": 0.0,
+      "plies": 29,
+      "reason": "goal"
+    },
+    {
+      "pair": 24,
+      "color": 0,
+      "score": 1.0,
+      "plies": 41,
+      "reason": "goal"
+    },
+    {
+      "pair": 24,
+      "color": 1,
+      "score": 0.0,
+      "plies": 73,
+      "reason": "goal"
+    },
+    {
+      "pair": 25,
+      "color": 0,
+      "score": 1.0,
+      "plies": 75,
+      "reason": "goal"
+    },
+    {
+      "pair": 25,
+      "color": 1,
+      "score": 1.0,
+      "plies": 48,
+      "reason": "goal"
+    },
+    {
+      "pair": 26,
+      "color": 0,
+      "score": 1.0,
+      "plies": 71,
+      "reason": "goal"
+    },
+    {
+      "pair": 26,
+      "color": 1,
+      "score": 0.0,
+      "plies": 79,
+      "reason": "goal"
+    },
+    {
+      "pair": 27,
+      "color": 0,
+      "score": 1.0,
+      "plies": 55,
+      "reason": "goal"
+    },
+    {
+      "pair": 27,
+      "color": 1,
+      "score": 0.0,
+      "plies": 57,
+      "reason": "goal"
+    },
+    {
+      "pair": 28,
+      "color": 0,
+      "score": 1.0,
+      "plies": 55,
+      "reason": "goal"
+    },
+    {
+      "pair": 28,
+      "color": 1,
+      "score": 0.0,
+      "plies": 41,
+      "reason": "goal"
+    },
+    {
+      "pair": 29,
+      "color": 0,
+      "score": 1.0,
+      "plies": 47,
+      "reason": "goal"
+    },
+    {
+      "pair": 29,
+      "color": 1,
+      "score": 0.0,
+      "plies": 55,
+      "reason": "goal"
+    },
+    {
+      "pair": 30,
+      "color": 0,
+      "score": 0.0,
+      "plies": 38,
+      "reason": "goal"
+    },
+    {
+      "pair": 30,
+      "color": 1,
+      "score": 1.0,
+      "plies": 58,
+      "reason": "goal"
+    },
+    {
+      "pair": 31,
+      "color": 0,
+      "score": 0.0,
+      "plies": 68,
+      "reason": "goal"
+    },
+    {
+      "pair": 31,
+      "color": 1,
+      "score": 0.0,
+      "plies": 47,
+      "reason": "goal"
+    },
+    {
+      "pair": 32,
+      "color": 0,
+      "score": 1.0,
+      "plies": 61,
+      "reason": "goal"
+    },
+    {
+      "pair": 32,
+      "color": 1,
+      "score": 0.0,
+      "plies": 61,
+      "reason": "goal"
+    },
+    {
+      "pair": 33,
+      "color": 0,
+      "score": 0.0,
+      "plies": 64,
+      "reason": "goal"
+    },
+    {
+      "pair": 33,
+      "color": 1,
+      "score": 1.0,
+      "plies": 84,
+      "reason": "goal"
+    },
+    {
+      "pair": 34,
+      "color": 0,
+      "score": 0.0,
+      "plies": 42,
+      "reason": "goal"
+    },
+    {
+      "pair": 34,
+      "color": 1,
+      "score": 1.0,
+      "plies": 62,
+      "reason": "goal"
+    },
+    {
+      "pair": 35,
+      "color": 0,
+      "score": 0.0,
+      "plies": 66,
+      "reason": "goal"
+    },
+    {
+      "pair": 35,
+      "color": 1,
+      "score": 1.0,
+      "plies": 44,
+      "reason": "goal"
+    },
+    {
+      "pair": 36,
+      "color": 0,
+      "score": 1.0,
+      "plies": 77,
+      "reason": "goal"
+    },
+    {
+      "pair": 36,
+      "color": 1,
+      "score": 1.0,
+      "plies": 48,
+      "reason": "goal"
+    },
+    {
+      "pair": 37,
+      "color": 0,
+      "score": 1.0,
+      "plies": 69,
+      "reason": "goal"
+    },
+    {
+      "pair": 37,
+      "color": 1,
+      "score": 0.0,
+      "plies": 53,
+      "reason": "goal"
+    },
+    {
+      "pair": 38,
+      "color": 0,
+      "score": 1.0,
+      "plies": 67,
+      "reason": "goal"
+    },
+    {
+      "pair": 38,
+      "color": 1,
+      "score": 0.0,
+      "plies": 47,
+      "reason": "goal"
+    },
+    {
+      "pair": 39,
+      "color": 0,
+      "score": 0.0,
+      "plies": 30,
+      "reason": "goal"
+    },
+    {
+      "pair": 39,
+      "color": 1,
+      "score": 1.0,
+      "plies": 48,
+      "reason": "goal"
+    },
+    {
+      "pair": 40,
+      "color": 0,
+      "score": 0.0,
+      "plies": 84,
+      "reason": "goal"
+    },
+    {
+      "pair": 40,
+      "color": 1,
+      "score": 1.0,
+      "plies": 44,
+      "reason": "goal"
+    },
+    {
+      "pair": 41,
+      "color": 0,
+      "score": 0.0,
+      "plies": 82,
+      "reason": "goal"
+    },
+    {
+      "pair": 41,
+      "color": 1,
+      "score": 1.0,
+      "plies": 40,
+      "reason": "goal"
+    },
+    {
+      "pair": 42,
+      "color": 0,
+      "score": 1.0,
+      "plies": 75,
+      "reason": "goal"
+    },
+    {
+      "pair": 42,
+      "color": 1,
+      "score": 1.0,
+      "plies": 48,
+      "reason": "goal"
+    },
+    {
+      "pair": 43,
+      "color": 0,
+      "score": 0.0,
+      "plies": 56,
+      "reason": "goal"
+    },
+    {
+      "pair": 43,
+      "color": 1,
+      "score": 1.0,
+      "plies": 54,
+      "reason": "goal"
+    },
+    {
+      "pair": 44,
+      "color": 0,
+      "score": 0.0,
+      "plies": 76,
+      "reason": "goal"
+    },
+    {
+      "pair": 44,
+      "color": 1,
+      "score": 1.0,
+      "plies": 40,
+      "reason": "goal"
+    },
+    {
+      "pair": 45,
+      "color": 0,
+      "score": 1.0,
+      "plies": 47,
+      "reason": "goal"
+    },
+    {
+      "pair": 45,
+      "color": 1,
+      "score": 0.0,
+      "plies": 31,
+      "reason": "goal"
+    },
+    {
+      "pair": 46,
+      "color": 0,
+      "score": 1.0,
+      "plies": 31,
+      "reason": "goal"
+    },
+    {
+      "pair": 46,
+      "color": 1,
+      "score": 0.0,
+      "plies": 49,
+      "reason": "goal"
+    },
+    {
+      "pair": 47,
+      "color": 0,
+      "score": 0.0,
+      "plies": 92,
+      "reason": "goal"
+    },
+    {
+      "pair": 47,
+      "color": 1,
+      "score": 0.0,
+      "plies": 71,
+      "reason": "goal"
+    },
+    {
+      "pair": 48,
+      "color": 0,
+      "score": 0.0,
+      "plies": 76,
+      "reason": "goal"
+    },
+    {
+      "pair": 48,
+      "color": 1,
+      "score": 1.0,
+      "plies": 74,
+      "reason": "goal"
+    },
+    {
+      "pair": 49,
+      "color": 0,
+      "score": 1.0,
+      "plies": 65,
+      "reason": "goal"
+    },
+    {
+      "pair": 49,
+      "color": 1,
+      "score": 0.0,
+      "plies": 65,
+      "reason": "goal"
+    },
+    {
+      "pair": 50,
+      "color": 0,
+      "score": 1.0,
+      "plies": 57,
+      "reason": "goal"
+    },
+    {
+      "pair": 50,
+      "color": 1,
+      "score": 1.0,
+      "plies": 52,
+      "reason": "goal"
+    },
+    {
+      "pair": 51,
+      "color": 0,
+      "score": 0.0,
+      "plies": 44,
+      "reason": "goal"
+    },
+    {
+      "pair": 51,
+      "color": 1,
+      "score": 0.0,
+      "plies": 55,
+      "reason": "goal"
+    },
+    {
+      "pair": 52,
+      "color": 0,
+      "score": 1.0,
+      "plies": 81,
+      "reason": "goal"
+    },
+    {
+      "pair": 52,
+      "color": 1,
+      "score": 0.0,
+      "plies": 69,
+      "reason": "goal"
+    },
+    {
+      "pair": 53,
+      "color": 0,
+      "score": 0.0,
+      "plies": 70,
+      "reason": "goal"
+    },
+    {
+      "pair": 53,
+      "color": 1,
+      "score": 1.0,
+      "plies": 70,
+      "reason": "goal"
+    },
+    {
+      "pair": 54,
+      "color": 0,
+      "score": 1.0,
+      "plies": 43,
+      "reason": "goal"
+    },
+    {
+      "pair": 54,
+      "color": 1,
+      "score": 0.0,
+      "plies": 59,
+      "reason": "goal"
+    },
+    {
+      "pair": 55,
+      "color": 0,
+      "score": 0.0,
+      "plies": 72,
+      "reason": "goal"
+    },
+    {
+      "pair": 55,
+      "color": 1,
+      "score": 1.0,
+      "plies": 48,
+      "reason": "goal"
+    },
+    {
+      "pair": 56,
+      "color": 0,
+      "score": 1.0,
+      "plies": 47,
+      "reason": "goal"
+    },
+    {
+      "pair": 56,
+      "color": 1,
+      "score": 1.0,
+      "plies": 66,
+      "reason": "goal"
+    },
+    {
+      "pair": 57,
+      "color": 0,
+      "score": 0.0,
+      "plies": 40,
+      "reason": "goal"
+    },
+    {
+      "pair": 57,
+      "color": 1,
+      "score": 1.0,
+      "plies": 38,
+      "reason": "goal"
+    },
+    {
+      "pair": 58,
+      "color": 0,
+      "score": 1.0,
+      "plies": 47,
+      "reason": "goal"
+    },
+    {
+      "pair": 58,
+      "color": 1,
+      "score": 1.0,
+      "plies": 60,
+      "reason": "goal"
+    },
+    {
+      "pair": 59,
+      "color": 0,
+      "score": 1.0,
+      "plies": 73,
+      "reason": "goal"
+    },
+    {
+      "pair": 59,
+      "color": 1,
+      "score": 0.0,
+      "plies": 45,
+      "reason": "goal"
+    },
+    {
+      "pair": 60,
+      "color": 0,
+      "score": 1.0,
+      "plies": 79,
+      "reason": "goal"
+    },
+    {
+      "pair": 60,
+      "color": 1,
+      "score": 1.0,
+      "plies": 70,
+      "reason": "goal"
+    },
+    {
+      "pair": 61,
+      "color": 0,
+      "score": 0.0,
+      "plies": 64,
+      "reason": "goal"
+    },
+    {
+      "pair": 61,
+      "color": 1,
+      "score": 0.0,
+      "plies": 39,
+      "reason": "goal"
+    },
+    {
+      "pair": 62,
+      "color": 0,
+      "score": 1.0,
+      "plies": 73,
+      "reason": "goal"
+    },
+    {
+      "pair": 62,
+      "color": 1,
+      "score": 0.0,
+      "plies": 57,
+      "reason": "goal"
+    },
+    {
+      "pair": 63,
+      "color": 0,
+      "score": 1.0,
+      "plies": 59,
+      "reason": "goal"
+    },
+    {
+      "pair": 63,
+      "color": 1,
+      "score": 0.0,
+      "plies": 63,
+      "reason": "goal"
+    },
+    {
+      "pair": 64,
+      "color": 0,
+      "score": 1.0,
+      "plies": 89,
+      "reason": "goal"
+    },
+    {
+      "pair": 64,
+      "color": 1,
+      "score": 0.0,
+      "plies": 59,
+      "reason": "goal"
+    },
+    {
+      "pair": 65,
+      "color": 0,
+      "score": 0.0,
+      "plies": 36,
+      "reason": "goal"
+    },
+    {
+      "pair": 65,
+      "color": 1,
+      "score": 1.0,
+      "plies": 46,
+      "reason": "goal"
+    },
+    {
+      "pair": 66,
+      "color": 0,
+      "score": 1.0,
+      "plies": 39,
+      "reason": "goal"
+    },
+    {
+      "pair": 66,
+      "color": 1,
+      "score": 0.0,
+      "plies": 47,
+      "reason": "goal"
+    },
+    {
+      "pair": 67,
+      "color": 0,
+      "score": 1.0,
+      "plies": 59,
+      "reason": "goal"
+    },
+    {
+      "pair": 67,
+      "color": 1,
+      "score": 1.0,
+      "plies": 42,
+      "reason": "goal"
+    },
+    {
+      "pair": 68,
+      "color": 0,
+      "score": 1.0,
+      "plies": 41,
+      "reason": "goal"
+    },
+    {
+      "pair": 68,
+      "color": 1,
+      "score": 0.0,
+      "plies": 45,
+      "reason": "goal"
+    },
+    {
+      "pair": 69,
+      "color": 0,
+      "score": 1.0,
+      "plies": 85,
+      "reason": "goal"
+    },
+    {
+      "pair": 69,
+      "color": 1,
+      "score": 0.0,
+      "plies": 69,
+      "reason": "goal"
+    },
+    {
+      "pair": 70,
+      "color": 0,
+      "score": 0.0,
+      "plies": 58,
+      "reason": "goal"
+    },
+    {
+      "pair": 70,
+      "color": 1,
+      "score": 1.0,
+      "plies": 60,
+      "reason": "goal"
+    },
+    {
+      "pair": 71,
+      "color": 0,
+      "score": 0.0,
+      "plies": 44,
+      "reason": "goal"
+    },
+    {
+      "pair": 71,
+      "color": 1,
+      "score": 1.0,
+      "plies": 68,
+      "reason": "goal"
+    },
+    {
+      "pair": 72,
+      "color": 0,
+      "score": 1.0,
+      "plies": 47,
+      "reason": "goal"
+    },
+    {
+      "pair": 72,
+      "color": 1,
+      "score": 1.0,
+      "plies": 54,
+      "reason": "goal"
+    },
+    {
+      "pair": 73,
+      "color": 0,
+      "score": 0.0,
+      "plies": 70,
+      "reason": "goal"
+    },
+    {
+      "pair": 73,
+      "color": 1,
+      "score": 1.0,
+      "plies": 48,
+      "reason": "goal"
+    },
+    {
+      "pair": 74,
+      "color": 0,
+      "score": 0.0,
+      "plies": 40,
+      "reason": "goal"
+    },
+    {
+      "pair": 74,
+      "color": 1,
+      "score": 0.0,
+      "plies": 69,
+      "reason": "goal"
+    },
+    {
+      "pair": 75,
+      "color": 0,
+      "score": 1.0,
+      "plies": 27,
+      "reason": "goal"
+    },
+    {
+      "pair": 75,
+      "color": 1,
+      "score": 0.0,
+      "plies": 25,
+      "reason": "goal"
+    },
+    {
+      "pair": 76,
+      "color": 0,
+      "score": 1.0,
+      "plies": 55,
+      "reason": "goal"
+    },
+    {
+      "pair": 76,
+      "color": 1,
+      "score": 0.0,
+      "plies": 71,
+      "reason": "goal"
+    },
+    {
+      "pair": 77,
+      "color": 0,
+      "score": 0.0,
+      "plies": 64,
+      "reason": "goal"
+    },
+    {
+      "pair": 77,
+      "color": 1,
+      "score": 1.0,
+      "plies": 52,
+      "reason": "goal"
+    },
+    {
+      "pair": 78,
+      "color": 0,
+      "score": 1.0,
+      "plies": 47,
+      "reason": "goal"
+    },
+    {
+      "pair": 78,
+      "color": 1,
+      "score": 0.0,
+      "plies": 49,
+      "reason": "goal"
+    },
+    {
+      "pair": 79,
+      "color": 0,
+      "score": 1.0,
+      "plies": 47,
+      "reason": "goal"
+    },
+    {
+      "pair": 79,
+      "color": 1,
+      "score": 0.0,
+      "plies": 37,
+      "reason": "goal"
+    },
+    {
+      "pair": 80,
+      "color": 0,
+      "score": 0.0,
+      "plies": 42,
+      "reason": "goal"
+    },
+    {
+      "pair": 80,
+      "color": 1,
+      "score": 1.0,
+      "plies": 44,
+      "reason": "goal"
+    },
+    {
+      "pair": 81,
+      "color": 0,
+      "score": 1.0,
+      "plies": 69,
+      "reason": "goal"
+    },
+    {
+      "pair": 81,
+      "color": 1,
+      "score": 1.0,
+      "plies": 56,
+      "reason": "goal"
+    },
+    {
+      "pair": 82,
+      "color": 0,
+      "score": 1.0,
+      "plies": 55,
+      "reason": "goal"
+    },
+    {
+      "pair": 82,
+      "color": 1,
+      "score": 1.0,
+      "plies": 82,
+      "reason": "goal"
+    },
+    {
+      "pair": 83,
+      "color": 0,
+      "score": 0.0,
+      "plies": 40,
+      "reason": "goal"
+    },
+    {
+      "pair": 83,
+      "color": 1,
+      "score": 0.0,
+      "plies": 59,
+      "reason": "goal"
+    },
+    {
+      "pair": 84,
+      "color": 0,
+      "score": 0.0,
+      "plies": 82,
+      "reason": "goal"
+    },
+    {
+      "pair": 84,
+      "color": 1,
+      "score": 1.0,
+      "plies": 58,
+      "reason": "goal"
+    },
+    {
+      "pair": 85,
+      "color": 0,
+      "score": 0.0,
+      "plies": 58,
+      "reason": "goal"
+    },
+    {
+      "pair": 85,
+      "color": 1,
+      "score": 1.0,
+      "plies": 46,
+      "reason": "goal"
+    },
+    {
+      "pair": 86,
+      "color": 0,
+      "score": 1.0,
+      "plies": 63,
+      "reason": "goal"
+    },
+    {
+      "pair": 86,
+      "color": 1,
+      "score": 1.0,
+      "plies": 74,
+      "reason": "goal"
+    },
+    {
+      "pair": 87,
+      "color": 0,
+      "score": 0.0,
+      "plies": 66,
+      "reason": "goal"
+    },
+    {
+      "pair": 87,
+      "color": 1,
+      "score": 0.0,
+      "plies": 75,
+      "reason": "goal"
+    },
+    {
+      "pair": 88,
+      "color": 0,
+      "score": 1.0,
+      "plies": 65,
+      "reason": "goal"
+    },
+    {
+      "pair": 88,
+      "color": 1,
+      "score": 1.0,
+      "plies": 76,
+      "reason": "goal"
+    },
+    {
+      "pair": 89,
+      "color": 0,
+      "score": 0.0,
+      "plies": 70,
+      "reason": "goal"
+    },
+    {
+      "pair": 89,
+      "color": 1,
+      "score": 1.0,
+      "plies": 52,
+      "reason": "goal"
+    },
+    {
+      "pair": 90,
+      "color": 0,
+      "score": 0.0,
+      "plies": 60,
+      "reason": "goal"
+    },
+    {
+      "pair": 90,
+      "color": 1,
+      "score": 1.0,
+      "plies": 40,
+      "reason": "goal"
+    },
+    {
+      "pair": 91,
+      "color": 0,
+      "score": 0.0,
+      "plies": 68,
+      "reason": "goal"
+    },
+    {
+      "pair": 91,
+      "color": 1,
+      "score": 1.0,
+      "plies": 86,
+      "reason": "goal"
+    },
+    {
+      "pair": 92,
+      "color": 0,
+      "score": 0.5,
+      "plies": 100,
+      "reason": "plies"
+    },
+    {
+      "pair": 92,
+      "color": 1,
+      "score": 1.0,
+      "plies": 48,
+      "reason": "goal"
+    },
+    {
+      "pair": 93,
+      "color": 0,
+      "score": 1.0,
+      "plies": 89,
+      "reason": "goal"
+    },
+    {
+      "pair": 93,
+      "color": 1,
+      "score": 1.0,
+      "plies": 64,
+      "reason": "goal"
+    },
+    {
+      "pair": 94,
+      "color": 0,
+      "score": 0.0,
+      "plies": 66,
+      "reason": "goal"
+    },
+    {
+      "pair": 94,
+      "color": 1,
+      "score": 0.0,
+      "plies": 59,
+      "reason": "goal"
+    },
+    {
+      "pair": 95,
+      "color": 0,
+      "score": 1.0,
+      "plies": 45,
+      "reason": "goal"
+    },
+    {
+      "pair": 95,
+      "color": 1,
+      "score": 0.0,
+      "plies": 67,
+      "reason": "goal"
+    },
+    {
+      "pair": 96,
+      "color": 0,
+      "score": 1.0,
+      "plies": 73,
+      "reason": "goal"
+    },
+    {
+      "pair": 96,
+      "color": 1,
+      "score": 1.0,
+      "plies": 60,
+      "reason": "goal"
+    },
+    {
+      "pair": 97,
+      "color": 0,
+      "score": 1.0,
+      "plies": 39,
+      "reason": "goal"
+    },
+    {
+      "pair": 97,
+      "color": 1,
+      "score": 0.0,
+      "plies": 49,
+      "reason": "goal"
+    },
+    {
+      "pair": 98,
+      "color": 0,
+      "score": 1.0,
+      "plies": 59,
+      "reason": "goal"
+    },
+    {
+      "pair": 98,
+      "color": 1,
+      "score": 1.0,
+      "plies": 30,
+      "reason": "goal"
+    },
+    {
+      "pair": 99,
+      "color": 0,
+      "score": 0.0,
+      "plies": 60,
+      "reason": "goal"
+    },
+    {
+      "pair": 99,
+      "color": 1,
+      "score": 1.0,
+      "plies": 82,
+      "reason": "goal"
+    },
+    {
+      "pair": 100,
+      "color": 0,
+      "score": 0.0,
+      "plies": 50,
+      "reason": "goal"
+    },
+    {
+      "pair": 100,
+      "color": 1,
+      "score": 0.0,
+      "plies": 71,
+      "reason": "goal"
+    },
+    {
+      "pair": 101,
+      "color": 0,
+      "score": 0.0,
+      "plies": 46,
+      "reason": "goal"
+    },
+    {
+      "pair": 101,
+      "color": 1,
+      "score": 1.0,
+      "plies": 36,
+      "reason": "goal"
+    },
+    {
+      "pair": 102,
+      "color": 0,
+      "score": 1.0,
+      "plies": 67,
+      "reason": "goal"
+    },
+    {
+      "pair": 102,
+      "color": 1,
+      "score": 0.0,
+      "plies": 51,
+      "reason": "goal"
+    },
+    {
+      "pair": 103,
+      "color": 0,
+      "score": 0.0,
+      "plies": 40,
+      "reason": "goal"
+    },
+    {
+      "pair": 103,
+      "color": 1,
+      "score": 1.0,
+      "plies": 36,
+      "reason": "goal"
+    },
+    {
+      "pair": 104,
+      "color": 0,
+      "score": 0.0,
+      "plies": 60,
+      "reason": "goal"
+    },
+    {
+      "pair": 104,
+      "color": 1,
+      "score": 0.0,
+      "plies": 79,
+      "reason": "goal"
+    },
+    {
+      "pair": 105,
+      "color": 0,
+      "score": 0.0,
+      "plies": 80,
+      "reason": "goal"
+    },
+    {
+      "pair": 105,
+      "color": 1,
+      "score": 1.0,
+      "plies": 74,
+      "reason": "goal"
+    },
+    {
+      "pair": 106,
+      "color": 0,
+      "score": 1.0,
+      "plies": 63,
+      "reason": "goal"
+    },
+    {
+      "pair": 106,
+      "color": 1,
+      "score": 0.0,
+      "plies": 73,
+      "reason": "goal"
+    },
+    {
+      "pair": 107,
+      "color": 0,
+      "score": 1.0,
+      "plies": 69,
+      "reason": "goal"
+    },
+    {
+      "pair": 107,
+      "color": 1,
+      "score": 0.0,
+      "plies": 61,
+      "reason": "goal"
+    },
+    {
+      "pair": 108,
+      "color": 0,
+      "score": 0.0,
+      "plies": 56,
+      "reason": "goal"
+    },
+    {
+      "pair": 108,
+      "color": 1,
+      "score": 1.0,
+      "plies": 36,
+      "reason": "goal"
+    },
+    {
+      "pair": 109,
+      "color": 0,
+      "score": 1.0,
+      "plies": 43,
+      "reason": "goal"
+    },
+    {
+      "pair": 109,
+      "color": 1,
+      "score": 0.0,
+      "plies": 51,
+      "reason": "goal"
+    },
+    {
+      "pair": 110,
+      "color": 0,
+      "score": 1.0,
+      "plies": 41,
+      "reason": "goal"
+    },
+    {
+      "pair": 110,
+      "color": 1,
+      "score": 0.0,
+      "plies": 53,
+      "reason": "goal"
+    },
+    {
+      "pair": 111,
+      "color": 0,
+      "score": 0.0,
+      "plies": 64,
+      "reason": "goal"
+    },
+    {
+      "pair": 111,
+      "color": 1,
+      "score": 1.0,
+      "plies": 72,
+      "reason": "goal"
+    },
+    {
+      "pair": 112,
+      "color": 0,
+      "score": 0.0,
+      "plies": 60,
+      "reason": "goal"
+    },
+    {
+      "pair": 112,
+      "color": 1,
+      "score": 1.0,
+      "plies": 48,
+      "reason": "goal"
+    },
+    {
+      "pair": 113,
+      "color": 0,
+      "score": 0.0,
+      "plies": 84,
+      "reason": "goal"
+    },
+    {
+      "pair": 113,
+      "color": 1,
+      "score": 0.0,
+      "plies": 47,
+      "reason": "goal"
+    },
+    {
+      "pair": 114,
+      "color": 0,
+      "score": 1.0,
+      "plies": 37,
+      "reason": "goal"
+    },
+    {
+      "pair": 114,
+      "color": 1,
+      "score": 0.0,
+      "plies": 25,
+      "reason": "goal"
+    },
+    {
+      "pair": 115,
+      "color": 0,
+      "score": 1.0,
+      "plies": 53,
+      "reason": "goal"
+    },
+    {
+      "pair": 115,
+      "color": 1,
+      "score": 0.0,
+      "plies": 67,
+      "reason": "goal"
+    },
+    {
+      "pair": 116,
+      "color": 0,
+      "score": 1.0,
+      "plies": 55,
+      "reason": "goal"
+    },
+    {
+      "pair": 116,
+      "color": 1,
+      "score": 0.0,
+      "plies": 43,
+      "reason": "goal"
+    },
+    {
+      "pair": 117,
+      "color": 0,
+      "score": 0.0,
+      "plies": 72,
+      "reason": "goal"
+    },
+    {
+      "pair": 117,
+      "color": 1,
+      "score": 1.0,
+      "plies": 68,
+      "reason": "goal"
+    },
+    {
+      "pair": 118,
+      "color": 0,
+      "score": 1.0,
+      "plies": 53,
+      "reason": "goal"
+    },
+    {
+      "pair": 118,
+      "color": 1,
+      "score": 1.0,
+      "plies": 30,
+      "reason": "goal"
+    },
+    {
+      "pair": 119,
+      "color": 0,
+      "score": 1.0,
+      "plies": 37,
+      "reason": "goal"
+    },
+    {
+      "pair": 119,
+      "color": 1,
+      "score": 0.0,
+      "plies": 37,
+      "reason": "goal"
+    },
+    {
+      "pair": 120,
+      "color": 0,
+      "score": 1.0,
+      "plies": 59,
+      "reason": "goal"
+    },
+    {
+      "pair": 120,
+      "color": 1,
+      "score": 0.0,
+      "plies": 69,
+      "reason": "goal"
+    },
+    {
+      "pair": 121,
+      "color": 0,
+      "score": 0.0,
+      "plies": 78,
+      "reason": "goal"
+    },
+    {
+      "pair": 121,
+      "color": 1,
+      "score": 0.0,
+      "plies": 89,
+      "reason": "goal"
+    },
+    {
+      "pair": 122,
+      "color": 0,
+      "score": 0.0,
+      "plies": 36,
+      "reason": "goal"
+    },
+    {
+      "pair": 122,
+      "color": 1,
+      "score": 1.0,
+      "plies": 52,
+      "reason": "goal"
+    },
+    {
+      "pair": 123,
+      "color": 0,
+      "score": 0.0,
+      "plies": 74,
+      "reason": "goal"
+    },
+    {
+      "pair": 123,
+      "color": 1,
+      "score": 0.0,
+      "plies": 57,
+      "reason": "goal"
+    },
+    {
+      "pair": 124,
+      "color": 0,
+      "score": 1.0,
+      "plies": 59,
+      "reason": "goal"
+    },
+    {
+      "pair": 124,
+      "color": 1,
+      "score": 0.0,
+      "plies": 79,
+      "reason": "goal"
+    },
+    {
+      "pair": 125,
+      "color": 0,
+      "score": 1.0,
+      "plies": 61,
+      "reason": "goal"
+    },
+    {
+      "pair": 125,
+      "color": 1,
+      "score": 1.0,
+      "plies": 62,
+      "reason": "goal"
+    },
+    {
+      "pair": 126,
+      "color": 0,
+      "score": 1.0,
+      "plies": 51,
+      "reason": "goal"
+    },
+    {
+      "pair": 126,
+      "color": 1,
+      "score": 1.0,
+      "plies": 78,
+      "reason": "goal"
+    },
+    {
+      "pair": 127,
+      "color": 0,
+      "score": 1.0,
+      "plies": 47,
+      "reason": "goal"
+    },
+    {
+      "pair": 127,
+      "color": 1,
+      "score": 1.0,
+      "plies": 64,
+      "reason": "goal"
+    },
+    {
+      "pair": 128,
+      "color": 0,
+      "score": 0.0,
+      "plies": 34,
+      "reason": "goal"
+    },
+    {
+      "pair": 128,
+      "color": 1,
+      "score": 1.0,
+      "plies": 44,
+      "reason": "goal"
+    },
+    {
+      "pair": 129,
+      "color": 0,
+      "score": 0.0,
+      "plies": 62,
+      "reason": "goal"
+    },
+    {
+      "pair": 129,
+      "color": 1,
+      "score": 1.0,
+      "plies": 64,
+      "reason": "goal"
+    },
+    {
+      "pair": 130,
+      "color": 0,
+      "score": 1.0,
+      "plies": 57,
+      "reason": "goal"
+    },
+    {
+      "pair": 130,
+      "color": 1,
+      "score": 1.0,
+      "plies": 66,
+      "reason": "goal"
+    },
+    {
+      "pair": 131,
+      "color": 0,
+      "score": 1.0,
+      "plies": 67,
+      "reason": "goal"
+    },
+    {
+      "pair": 131,
+      "color": 1,
+      "score": 0.0,
+      "plies": 69,
+      "reason": "goal"
+    },
+    {
+      "pair": 132,
+      "color": 0,
+      "score": 1.0,
+      "plies": 53,
+      "reason": "goal"
+    },
+    {
+      "pair": 132,
+      "color": 1,
+      "score": 1.0,
+      "plies": 56,
+      "reason": "goal"
+    },
+    {
+      "pair": 133,
+      "color": 0,
+      "score": 1.0,
+      "plies": 37,
+      "reason": "goal"
+    },
+    {
+      "pair": 133,
+      "color": 1,
+      "score": 0.0,
+      "plies": 41,
+      "reason": "goal"
+    },
+    {
+      "pair": 134,
+      "color": 0,
+      "score": 0.0,
+      "plies": 52,
+      "reason": "goal"
+    },
+    {
+      "pair": 134,
+      "color": 1,
+      "score": 1.0,
+      "plies": 52,
+      "reason": "goal"
+    },
+    {
+      "pair": 135,
+      "color": 0,
+      "score": 1.0,
+      "plies": 53,
+      "reason": "goal"
+    },
+    {
+      "pair": 135,
+      "color": 1,
+      "score": 0.0,
+      "plies": 45,
+      "reason": "goal"
+    },
+    {
+      "pair": 136,
+      "color": 0,
+      "score": 1.0,
+      "plies": 41,
+      "reason": "goal"
+    },
+    {
+      "pair": 136,
+      "color": 1,
+      "score": 1.0,
+      "plies": 52,
+      "reason": "goal"
+    },
+    {
+      "pair": 137,
+      "color": 0,
+      "score": 1.0,
+      "plies": 43,
+      "reason": "goal"
+    },
+    {
+      "pair": 137,
+      "color": 1,
+      "score": 0.0,
+      "plies": 67,
+      "reason": "goal"
+    },
+    {
+      "pair": 138,
+      "color": 0,
+      "score": 0.0,
+      "plies": 54,
+      "reason": "goal"
+    },
+    {
+      "pair": 138,
+      "color": 1,
+      "score": 1.0,
+      "plies": 52,
+      "reason": "goal"
+    },
+    {
+      "pair": 139,
+      "color": 0,
+      "score": 1.0,
+      "plies": 41,
+      "reason": "goal"
+    },
+    {
+      "pair": 139,
+      "color": 1,
+      "score": 0.0,
+      "plies": 47,
+      "reason": "goal"
+    },
+    {
+      "pair": 140,
+      "color": 0,
+      "score": 0.0,
+      "plies": 62,
+      "reason": "goal"
+    },
+    {
+      "pair": 140,
+      "color": 1,
+      "score": 0.0,
+      "plies": 37,
+      "reason": "goal"
+    },
+    {
+      "pair": 141,
+      "color": 0,
+      "score": 1.0,
+      "plies": 67,
+      "reason": "goal"
+    },
+    {
+      "pair": 141,
+      "color": 1,
+      "score": 0.0,
+      "plies": 61,
+      "reason": "goal"
+    },
+    {
+      "pair": 142,
+      "color": 0,
+      "score": 1.0,
+      "plies": 47,
+      "reason": "goal"
+    },
+    {
+      "pair": 142,
+      "color": 1,
+      "score": 1.0,
+      "plies": 56,
+      "reason": "goal"
+    },
+    {
+      "pair": 143,
+      "color": 0,
+      "score": 1.0,
+      "plies": 43,
+      "reason": "goal"
+    },
+    {
+      "pair": 143,
+      "color": 1,
+      "score": 0.0,
+      "plies": 71,
+      "reason": "goal"
+    },
+    {
+      "pair": 144,
+      "color": 0,
+      "score": 1.0,
+      "plies": 85,
+      "reason": "goal"
+    },
+    {
+      "pair": 144,
+      "color": 1,
+      "score": 1.0,
+      "plies": 56,
+      "reason": "goal"
+    },
+    {
+      "pair": 145,
+      "color": 0,
+      "score": 0.0,
+      "plies": 42,
+      "reason": "goal"
+    },
+    {
+      "pair": 145,
+      "color": 1,
+      "score": 0.0,
+      "plies": 65,
+      "reason": "goal"
+    },
+    {
+      "pair": 146,
+      "color": 0,
+      "score": 1.0,
+      "plies": 61,
+      "reason": "goal"
+    },
+    {
+      "pair": 146,
+      "color": 1,
+      "score": 0.0,
+      "plies": 63,
+      "reason": "goal"
+    },
+    {
+      "pair": 147,
+      "color": 0,
+      "score": 1.0,
+      "plies": 51,
+      "reason": "goal"
+    },
+    {
+      "pair": 147,
+      "color": 1,
+      "score": 1.0,
+      "plies": 86,
+      "reason": "goal"
+    },
+    {
+      "pair": 148,
+      "color": 0,
+      "score": 1.0,
+      "plies": 23,
+      "reason": "goal"
+    },
+    {
+      "pair": 148,
+      "color": 1,
+      "score": 0.0,
+      "plies": 31,
+      "reason": "goal"
+    },
+    {
+      "pair": 149,
+      "color": 0,
+      "score": 0.0,
+      "plies": 66,
+      "reason": "goal"
+    },
+    {
+      "pair": 149,
+      "color": 1,
+      "score": 1.0,
+      "plies": 50,
+      "reason": "goal"
+    },
+    {
+      "pair": 150,
+      "color": 0,
+      "score": 0.0,
+      "plies": 88,
+      "reason": "goal"
+    },
+    {
+      "pair": 150,
+      "color": 1,
+      "score": 1.0,
+      "plies": 50,
+      "reason": "goal"
+    },
+    {
+      "pair": 151,
+      "color": 0,
+      "score": 1.0,
+      "plies": 45,
+      "reason": "goal"
+    },
+    {
+      "pair": 151,
+      "color": 1,
+      "score": 0.0,
+      "plies": 61,
+      "reason": "goal"
+    },
+    {
+      "pair": 152,
+      "color": 0,
+      "score": 1.0,
+      "plies": 53,
+      "reason": "goal"
+    },
+    {
+      "pair": 152,
+      "color": 1,
+      "score": 1.0,
+      "plies": 74,
+      "reason": "goal"
+    },
+    {
+      "pair": 153,
+      "color": 0,
+      "score": 0.0,
+      "plies": 54,
+      "reason": "goal"
+    },
+    {
+      "pair": 153,
+      "color": 1,
+      "score": 1.0,
+      "plies": 48,
+      "reason": "goal"
+    },
+    {
+      "pair": 154,
+      "color": 0,
+      "score": 1.0,
+      "plies": 75,
+      "reason": "goal"
+    },
+    {
+      "pair": 154,
+      "color": 1,
+      "score": 0.0,
+      "plies": 43,
+      "reason": "goal"
+    },
+    {
+      "pair": 155,
+      "color": 0,
+      "score": 0.0,
+      "plies": 62,
+      "reason": "goal"
+    },
+    {
+      "pair": 155,
+      "color": 1,
+      "score": 1.0,
+      "plies": 74,
+      "reason": "goal"
+    },
+    {
+      "pair": 156,
+      "color": 0,
+      "score": 0.0,
+      "plies": 62,
+      "reason": "goal"
+    },
+    {
+      "pair": 156,
+      "color": 1,
+      "score": 1.0,
+      "plies": 66,
+      "reason": "goal"
+    },
+    {
+      "pair": 157,
+      "color": 0,
+      "score": 0.0,
+      "plies": 78,
+      "reason": "goal"
+    },
+    {
+      "pair": 157,
+      "color": 1,
+      "score": 0.0,
+      "plies": 67,
+      "reason": "goal"
+    },
+    {
+      "pair": 158,
+      "color": 0,
+      "score": 0.0,
+      "plies": 40,
+      "reason": "goal"
+    },
+    {
+      "pair": 158,
+      "color": 1,
+      "score": 1.0,
+      "plies": 42,
+      "reason": "goal"
+    },
+    {
+      "pair": 159,
+      "color": 0,
+      "score": 1.0,
+      "plies": 37,
+      "reason": "goal"
+    },
+    {
+      "pair": 159,
+      "color": 1,
+      "score": 1.0,
+      "plies": 64,
+      "reason": "goal"
+    },
+    {
+      "pair": 160,
+      "color": 0,
+      "score": 1.0,
+      "plies": 57,
+      "reason": "goal"
+    },
+    {
+      "pair": 160,
+      "color": 1,
+      "score": 1.0,
+      "plies": 50,
+      "reason": "goal"
+    },
+    {
+      "pair": 161,
+      "color": 0,
+      "score": 1.0,
+      "plies": 61,
+      "reason": "goal"
+    },
+    {
+      "pair": 161,
+      "color": 1,
+      "score": 0.0,
+      "plies": 59,
+      "reason": "goal"
+    },
+    {
+      "pair": 162,
+      "color": 0,
+      "score": 0.0,
+      "plies": 68,
+      "reason": "goal"
+    },
+    {
+      "pair": 162,
+      "color": 1,
+      "score": 1.0,
+      "plies": 40,
+      "reason": "goal"
+    },
+    {
+      "pair": 163,
+      "color": 0,
+      "score": 0.0,
+      "plies": 70,
+      "reason": "goal"
+    },
+    {
+      "pair": 163,
+      "color": 1,
+      "score": 1.0,
+      "plies": 84,
+      "reason": "goal"
+    },
+    {
+      "pair": 164,
+      "color": 0,
+      "score": 0.0,
+      "plies": 44,
+      "reason": "goal"
+    },
+    {
+      "pair": 164,
+      "color": 1,
+      "score": 1.0,
+      "plies": 42,
+      "reason": "goal"
+    },
+    {
+      "pair": 165,
+      "color": 0,
+      "score": 0.0,
+      "plies": 32,
+      "reason": "goal"
+    },
+    {
+      "pair": 165,
+      "color": 1,
+      "score": 1.0,
+      "plies": 40,
+      "reason": "goal"
+    },
+    {
+      "pair": 166,
+      "color": 0,
+      "score": 0.0,
+      "plies": 66,
+      "reason": "goal"
+    },
+    {
+      "pair": 166,
+      "color": 1,
+      "score": 1.0,
+      "plies": 60,
+      "reason": "goal"
+    },
+    {
+      "pair": 167,
+      "color": 0,
+      "score": 1.0,
+      "plies": 65,
+      "reason": "goal"
+    },
+    {
+      "pair": 167,
+      "color": 1,
+      "score": 1.0,
+      "plies": 58,
+      "reason": "goal"
+    },
+    {
+      "pair": 168,
+      "color": 0,
+      "score": 1.0,
+      "plies": 53,
+      "reason": "goal"
+    },
+    {
+      "pair": 168,
+      "color": 1,
+      "score": 1.0,
+      "plies": 80,
+      "reason": "goal"
+    },
+    {
+      "pair": 169,
+      "color": 0,
+      "score": 1.0,
+      "plies": 73,
+      "reason": "goal"
+    },
+    {
+      "pair": 169,
+      "color": 1,
+      "score": 1.0,
+      "plies": 40,
+      "reason": "goal"
+    },
+    {
+      "pair": 170,
+      "color": 0,
+      "score": 1.0,
+      "plies": 41,
+      "reason": "goal"
+    },
+    {
+      "pair": 170,
+      "color": 1,
+      "score": 0.0,
+      "plies": 41,
+      "reason": "goal"
+    },
+    {
+      "pair": 171,
+      "color": 0,
+      "score": 0.5,
+      "plies": 100,
+      "reason": "plies"
+    },
+    {
+      "pair": 171,
+      "color": 1,
+      "score": 0.0,
+      "plies": 43,
+      "reason": "goal"
+    },
+    {
+      "pair": 172,
+      "color": 0,
+      "score": 1.0,
+      "plies": 55,
+      "reason": "goal"
+    },
+    {
+      "pair": 172,
+      "color": 1,
+      "score": 1.0,
+      "plies": 48,
+      "reason": "goal"
+    },
+    {
+      "pair": 173,
+      "color": 0,
+      "score": 0.0,
+      "plies": 64,
+      "reason": "goal"
+    },
+    {
+      "pair": 173,
+      "color": 1,
+      "score": 0.0,
+      "plies": 83,
+      "reason": "goal"
+    },
+    {
+      "pair": 174,
+      "color": 0,
+      "score": 0.0,
+      "plies": 62,
+      "reason": "goal"
+    },
+    {
+      "pair": 174,
+      "color": 1,
+      "score": 1.0,
+      "plies": 64,
+      "reason": "goal"
+    },
+    {
+      "pair": 175,
+      "color": 0,
+      "score": 0.0,
+      "plies": 56,
+      "reason": "goal"
+    },
+    {
+      "pair": 175,
+      "color": 1,
+      "score": 1.0,
+      "plies": 36,
+      "reason": "goal"
+    },
+    {
+      "pair": 176,
+      "color": 0,
+      "score": 0.0,
+      "plies": 54,
+      "reason": "goal"
+    },
+    {
+      "pair": 176,
+      "color": 1,
+      "score": 1.0,
+      "plies": 40,
+      "reason": "goal"
+    },
+    {
+      "pair": 177,
+      "color": 0,
+      "score": 1.0,
+      "plies": 49,
+      "reason": "goal"
+    },
+    {
+      "pair": 177,
+      "color": 1,
+      "score": 0.0,
+      "plies": 47,
+      "reason": "goal"
+    },
+    {
+      "pair": 178,
+      "color": 0,
+      "score": 0.0,
+      "plies": 38,
+      "reason": "goal"
+    },
+    {
+      "pair": 178,
+      "color": 1,
+      "score": 0.0,
+      "plies": 87,
+      "reason": "goal"
+    },
+    {
+      "pair": 179,
+      "color": 0,
+      "score": 0.0,
+      "plies": 44,
+      "reason": "goal"
+    },
+    {
+      "pair": 179,
+      "color": 1,
+      "score": 1.0,
+      "plies": 36,
+      "reason": "goal"
+    },
+    {
+      "pair": 180,
+      "color": 0,
+      "score": 1.0,
+      "plies": 27,
+      "reason": "goal"
+    },
+    {
+      "pair": 180,
+      "color": 1,
+      "score": 0.0,
+      "plies": 43,
+      "reason": "goal"
+    },
+    {
+      "pair": 181,
+      "color": 0,
+      "score": 0.0,
+      "plies": 84,
+      "reason": "goal"
+    },
+    {
+      "pair": 181,
+      "color": 1,
+      "score": 0.0,
+      "plies": 43,
+      "reason": "goal"
+    },
+    {
+      "pair": 182,
+      "color": 0,
+      "score": 1.0,
+      "plies": 67,
+      "reason": "goal"
+    },
+    {
+      "pair": 182,
+      "color": 1,
+      "score": 0.0,
+      "plies": 59,
+      "reason": "goal"
+    },
+    {
+      "pair": 183,
+      "color": 0,
+      "score": 1.0,
+      "plies": 49,
+      "reason": "goal"
+    },
+    {
+      "pair": 183,
+      "color": 1,
+      "score": 1.0,
+      "plies": 42,
+      "reason": "goal"
+    },
+    {
+      "pair": 184,
+      "color": 0,
+      "score": 1.0,
+      "plies": 51,
+      "reason": "goal"
+    },
+    {
+      "pair": 184,
+      "color": 1,
+      "score": 0.0,
+      "plies": 47,
+      "reason": "goal"
+    },
+    {
+      "pair": 185,
+      "color": 0,
+      "score": 1.0,
+      "plies": 67,
+      "reason": "goal"
+    },
+    {
+      "pair": 185,
+      "color": 1,
+      "score": 0.0,
+      "plies": 35,
+      "reason": "goal"
+    },
+    {
+      "pair": 186,
+      "color": 0,
+      "score": 1.0,
+      "plies": 63,
+      "reason": "goal"
+    },
+    {
+      "pair": 186,
+      "color": 1,
+      "score": 1.0,
+      "plies": 72,
+      "reason": "goal"
+    },
+    {
+      "pair": 187,
+      "color": 0,
+      "score": 0.0,
+      "plies": 56,
+      "reason": "goal"
+    },
+    {
+      "pair": 187,
+      "color": 1,
+      "score": 1.0,
+      "plies": 68,
+      "reason": "goal"
+    },
+    {
+      "pair": 188,
+      "color": 0,
+      "score": 1.0,
+      "plies": 43,
+      "reason": "goal"
+    },
+    {
+      "pair": 188,
+      "color": 1,
+      "score": 0.0,
+      "plies": 63,
+      "reason": "goal"
+    },
+    {
+      "pair": 189,
+      "color": 0,
+      "score": 0.0,
+      "plies": 58,
+      "reason": "goal"
+    },
+    {
+      "pair": 189,
+      "color": 1,
+      "score": 0.0,
+      "plies": 43,
+      "reason": "goal"
+    },
+    {
+      "pair": 190,
+      "color": 0,
+      "score": 1.0,
+      "plies": 73,
+      "reason": "goal"
+    },
+    {
+      "pair": 190,
+      "color": 1,
+      "score": 1.0,
+      "plies": 74,
+      "reason": "goal"
+    },
+    {
+      "pair": 191,
+      "color": 0,
+      "score": 1.0,
+      "plies": 59,
+      "reason": "goal"
+    },
+    {
+      "pair": 191,
+      "color": 1,
+      "score": 1.0,
+      "plies": 28,
+      "reason": "goal"
+    },
+    {
+      "pair": 192,
+      "color": 0,
+      "score": 1.0,
+      "plies": 95,
+      "reason": "goal"
+    },
+    {
+      "pair": 192,
+      "color": 1,
+      "score": 1.0,
+      "plies": 54,
+      "reason": "goal"
+    },
+    {
+      "pair": 193,
+      "color": 0,
+      "score": 1.0,
+      "plies": 53,
+      "reason": "goal"
+    },
+    {
+      "pair": 193,
+      "color": 1,
+      "score": 0.0,
+      "plies": 57,
+      "reason": "goal"
+    },
+    {
+      "pair": 194,
+      "color": 0,
+      "score": 0.0,
+      "plies": 70,
+      "reason": "goal"
+    },
+    {
+      "pair": 194,
+      "color": 1,
+      "score": 1.0,
+      "plies": 56,
+      "reason": "goal"
+    },
+    {
+      "pair": 195,
+      "color": 0,
+      "score": 1.0,
+      "plies": 47,
+      "reason": "goal"
+    },
+    {
+      "pair": 195,
+      "color": 1,
+      "score": 0.0,
+      "plies": 57,
+      "reason": "goal"
+    },
+    {
+      "pair": 196,
+      "color": 0,
+      "score": 1.0,
+      "plies": 63,
+      "reason": "goal"
+    },
+    {
+      "pair": 196,
+      "color": 1,
+      "score": 1.0,
+      "plies": 54,
+      "reason": "goal"
+    },
+    {
+      "pair": 197,
+      "color": 0,
+      "score": 1.0,
+      "plies": 45,
+      "reason": "goal"
+    },
+    {
+      "pair": 197,
+      "color": 1,
+      "score": 1.0,
+      "plies": 54,
+      "reason": "goal"
+    },
+    {
+      "pair": 198,
+      "color": 0,
+      "score": 1.0,
+      "plies": 51,
+      "reason": "goal"
+    },
+    {
+      "pair": 198,
+      "color": 1,
+      "score": 1.0,
+      "plies": 64,
+      "reason": "goal"
+    },
+    {
+      "pair": 199,
+      "color": 0,
+      "score": 1.0,
+      "plies": 55,
+      "reason": "goal"
+    },
+    {
+      "pair": 199,
+      "color": 1,
+      "score": 0.0,
+      "plies": 69,
+      "reason": "goal"
+    }
+  ]
+}

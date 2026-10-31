@@ -1,0 +1,234 @@
+{
+  "baseline": {
+    "iterations": 33,
+    "seconds": 2747.8361661434174,
+    "games": 67823,
+    "positions": 4097915,
+    "steps": 15991,
+    "games_per_second": 24.682330349843763,
+    "median_iteration_seconds": 82.02632641792297,
+    "play_seconds": 1679.3938212394714,
+    "policy_rows": 3082232,
+    "value_only_rows": 1015683,
+    "search_stats": {
+      "cache_hits": 41650701,
+      "unique_evaluations": 94610722,
+      "waves": 105369,
+      "leaves": 136261423,
+      "forward_seconds": 46.41821174102279,
+      "search_seconds": 1065.950415844069,
+      "race_queries": 0,
+      "race_solved": 0,
+      "race_unknown": 0,
+      "race_nodes": 0,
+      "race_seconds": 0.0
+    },
+    "caps": {
+      "40": 0,
+      "400": 0
+    }
+  },
+  "adamw_cosine": {
+    "iterations": 33,
+    "seconds": 2705.9827387332916,
+    "games": 67798,
+    "positions": 4095857,
+    "steps": 15984,
+    "games_per_second": 25.054853096268157,
+    "median_iteration_seconds": 80.74777722358704,
+    "play_seconds": 1640.3542845249176,
+    "policy_rows": 3075607,
+    "value_only_rows": 1020250,
+    "search_stats": {
+      "cache_hits": 42427740,
+      "unique_evaluations": 93913882,
+      "waves": 104741,
+      "leaves": 136341622,
+      "forward_seconds": 56.29306349812941,
+      "search_seconds": 1038.1002093120278,
+      "race_queries": 0,
+      "race_solved": 0,
+      "race_unknown": 0,
+      "race_nodes": 0,
+      "race_seconds": 0.0
+    },
+    "caps": {
+      "40": 0,
+      "400": 0
+    }
+  },
+  "adamw_restarts": {
+    "iterations": 34,
+    "seconds": 2767.5853004455566,
+    "games": 69875,
+    "positions": 4174662,
+    "steps": 16289,
+    "games_per_second": 25.24764096295451,
+    "median_iteration_seconds": 80.91080784797668,
+    "play_seconds": 1681.2945251464844,
+    "policy_rows": 3128007,
+    "value_only_rows": 1046655,
+    "search_stats": {
+      "cache_hits": 46531368,
+      "unique_evaluations": 95796190,
+      "waves": 107430,
+      "leaves": 142327558,
+      "forward_seconds": 57.053950015869304,
+      "search_seconds": 1063.0530823697127,
+      "race_queries": 0,
+      "race_solved": 0,
+      "race_unknown": 0,
+      "race_nodes": 0,
+      "race_seconds": 0.0
+    },
+    "caps": {
+      "40": 0,
+      "400": 0
+    }
+  },
+  "muon_flat": {
+    "iterations": 33,
+    "seconds": 2741.469353199005,
+    "games": 67853,
+    "positions": 4075901,
+    "steps": 15906,
+    "games_per_second": 24.750595851389956,
+    "median_iteration_seconds": 81.2287300825119,
+    "play_seconds": 1623.0973145961761,
+    "policy_rows": 3058045,
+    "value_only_rows": 1017856,
+    "search_stats": {
+      "cache_hits": 39247667,
+      "unique_evaluations": 92693430,
+      "waves": 103155,
+      "leaves": 131941097,
+      "forward_seconds": 52.91329158458757,
+      "search_seconds": 1025.7695343507858,
+      "race_queries": 0,
+      "race_solved": 0,
+      "race_unknown": 0,
+      "race_nodes": 0,
+      "race_seconds": 0.0
+    },
+    "caps": {
+      "40": 0,
+      "400": 0
+    }
+  },
+  "muon_cosine": {
+    "iterations": 33,
+    "seconds": 2788.586938858032,
+    "games": 67814,
+    "positions": 4105558,
+    "steps": 16019,
+    "games_per_second": 24.31840982077139,
+    "median_iteration_seconds": 83.33142828941345,
+    "play_seconds": 1660.6784827709198,
+    "policy_rows": 3088300,
+    "value_only_rows": 1017258,
+    "search_stats": {
+      "cache_hits": 43173805,
+      "unique_evaluations": 94408490,
+      "waves": 105176,
+      "leaves": 137582295,
+      "forward_seconds": 54.061299676044655,
+      "search_seconds": 1053.6237833463874,
+      "race_queries": 0,
+      "race_solved": 0,
+      "race_unknown": 0,
+      "race_nodes": 0,
+      "race_seconds": 0.0
+    },
+    "caps": {
+      "40": 0,
+      "400": 0
+    }
+  },
+  "muon_restarts": {
+    "iterations": 32,
+    "seconds": 2776.1700513362885,
+    "games": 65802,
+    "positions": 4001690,
+    "steps": 15618,
+    "games_per_second": 23.70243853337684,
+    "median_iteration_seconds": 87.13942217826843,
+    "play_seconds": 1681.1340129375458,
+    "policy_rows": 3000502,
+    "value_only_rows": 1001188,
+    "search_stats": {
+      "cache_hits": 42648382,
+      "unique_evaluations": 90988079,
+      "waves": 101559,
+      "leaves": 133636461,
+      "forward_seconds": 38.604382755976985,
+      "search_seconds": 1055.1045718939222,
+      "race_queries": 0,
+      "race_solved": 0,
+      "race_unknown": 0,
+      "race_nodes": 0,
+      "race_seconds": 0.0
+    },
+    "caps": {
+      "40": 0,
+      "400": 0
+    }
+  },
+  "playout_40_400": {
+    "iterations": 29,
+    "seconds": 2719.9968297481537,
+    "games": 59550,
+    "positions": 3576711,
+    "steps": 13955,
+    "games_per_second": 21.893407870447327,
+    "median_iteration_seconds": 94.41944539546967,
+    "play_seconds": 1799.2294671535492,
+    "policy_rows": 642734,
+    "value_only_rows": 2933977,
+    "search_stats": {
+      "cache_hits": 45042238,
+      "unique_evaluations": 101946443,
+      "waves": 116938,
+      "leaves": 146988681,
+      "forward_seconds": 58.736182226590245,
+      "search_seconds": 1173.5163396595735,
+      "race_queries": 0,
+      "race_solved": 0,
+      "race_unknown": 0,
+      "race_nodes": 0,
+      "race_seconds": 0.0
+    },
+    "caps": {
+      "40": 1934546,
+      "400": 642734
+    }
+  },
+  "tablebase": {
+    "iterations": 12,
+    "seconds": 2785.40536904335,
+    "games": 24651,
+    "positions": 1585761,
+    "steps": 6187,
+    "games_per_second": 8.850058334046512,
+    "median_iteration_seconds": 239.93475651741028,
+    "play_seconds": 2370.0617349147797,
+    "policy_rows": 1183972,
+    "value_only_rows": 401789,
+    "search_stats": {
+      "cache_hits": 9945953,
+      "unique_evaluations": 26381464,
+      "waves": 30603,
+      "leaves": 36327417,
+      "forward_seconds": 0.6886831760857604,
+      "search_seconds": 2152.7370573099934,
+      "race_queries": 12914522,
+      "race_solved": 12914522,
+      "race_unknown": 0,
+      "race_nodes": 8236285740,
+      "race_seconds": 16298.37125476
+    },
+    "caps": {
+      "40": 0,
+      "400": 0
+    }
+  }
+}

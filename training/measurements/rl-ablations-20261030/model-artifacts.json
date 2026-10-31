@@ -1,0 +1,90 @@
+{
+  "baseline": {
+    "sha256": "4ea0cc421164ab628c93989e8904d02f6008a99c32901921570707a395ee6510",
+    "iterations": 33,
+    "training_minutes": 45.79726943572362,
+    "model_config": {
+      "planes": 19,
+      "channels": 128,
+      "blocks": 10,
+      "drop_planes": []
+    }
+  },
+  "adamw_cosine": {
+    "sha256": "18ec02f750ca1b979280108e8311639db933a47543ecb2d94fdf71207d2fd4c7",
+    "iterations": 33,
+    "training_minutes": 45.09971231222153,
+    "model_config": {
+      "planes": 19,
+      "channels": 128,
+      "blocks": 10,
+      "drop_planes": []
+    }
+  },
+  "adamw_restarts": {
+    "sha256": "390cd1c9fdc2ab6fc6566f89971b13ff14852327dadacc2f33a337dc5ca98ef7",
+    "iterations": 34,
+    "training_minutes": 46.12642167409261,
+    "model_config": {
+      "planes": 19,
+      "channels": 128,
+      "blocks": 10,
+      "drop_planes": []
+    }
+  },
+  "muon_flat": {
+    "sha256": "f817eb963b34d44b6074015e7f07f00a600957e4e472d2ba8f364d40d5874719",
+    "iterations": 33,
+    "training_minutes": 45.69115588665009,
+    "model_config": {
+      "planes": 19,
+      "channels": 128,
+      "blocks": 10,
+      "drop_planes": []
+    }
+  },
+  "muon_cosine": {
+    "sha256": "e24f3c4fd88f8d9b9172fb3b3084259d0975fd32055e519425477ec9d3ed735e",
+    "iterations": 33,
+    "training_minutes": 46.476448980967206,
+    "model_config": {
+      "planes": 19,
+      "channels": 128,
+      "blocks": 10,
+      "drop_planes": []
+    }
+  },
+  "muon_restarts": {
+    "sha256": "9a9f4d769d0168b054d966d14ba018ed4f18ed3a7657659bb65d8246230a41d1",
+    "iterations": 32,
+    "training_minutes": 46.26950085560481,
+    "model_config": {
+      "planes": 19,
+      "channels": 128,
+      "blocks": 10,
+      "drop_planes": []
+    }
+  },
+  "playout_40_400": {
+    "sha256": "6b35ab8828050d122cf361c2a14a531e9ddabd4c50db6e0e7541bf4eed378367",
+    "iterations": 29,
+    "training_minutes": 45.33328049580256,
+    "model_config": {
+      "planes": 19,
+      "channels": 128,
+      "blocks": 10,
+      "drop_planes": []
+    }
+  },
+  "tablebase": {
+    "sha256": "f5629f0de9fef4aabfe5b9894cb49f2b945b65f9dcd52ad5e5cd18d347b508b0",
+    "iterations": 12,
+    "training_minutes": 46.423422817389174,
+    "model_config": {
+      "planes": 19,
+      "channels": 128,
+      "blocks": 10,
+      "drop_planes": []
+    }
+  }
+}

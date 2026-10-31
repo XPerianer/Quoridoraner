@@ -1,0 +1,56 @@
+{
+  "minutes": 45.0,
+  "schedule_steps": 15000,
+  "seed": 1,
+  "pairs": 100,
+  "arms": {
+    "baseline": [],
+    "adamw_cosine": [
+      "--schedule",
+      "cosine",
+      "--schedule-steps",
+      "15000"
+    ],
+    "adamw_restarts": [
+      "--schedule",
+      "cosine-restarts",
+      "--schedule-steps",
+      "15000"
+    ],
+    "muon_flat": [
+      "--optimizer",
+      "muon"
+    ],
+    "muon_cosine": [
+      "--optimizer",
+      "muon",
+      "--schedule",
+      "cosine",
+      "--schedule-steps",
+      "15000"
+    ],
+    "muon_restarts": [
+      "--optimizer",
+      "muon",
+      "--schedule",
+      "cosine-restarts",
+      "--schedule-steps",
+      "15000"
+    ],
+    "playout_40_400": [
+      "--playout-cap",
+      "randomized-40-400"
+    ],
+    "race_solver": [
+      "--race-solver",
+      "exact"
+    ]
+  },
+  "init": "/content/pre-model.pt",
+  "init_sha256": "30c7f31950b5a26cbae7ad403d61db85082616c35463dc27bb79fb1fa0c5177e",
+  "source_sha256": {
+    "az.py": "e9a8cc24952d1b8333c149fca64d9fdbbb3748583aeefbdc01bb161ee3f2c121",
+    "native/az.cpp": "720ad0418f570973510063358e1236491cdcd4b121f220dc62fc7ce1bf3c0964",
+    "native/engine.hpp": "7b62f75634f949288720fa405a9198bf72c97ffd222997d4c8b445cd55bd441e"
+  }
+}

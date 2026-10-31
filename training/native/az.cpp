@@ -5,6 +5,7 @@
 // Search is PUCT, or Gumbel AlphaZero (Danihelka et al. 2022): sequential halving with
 // Gumbel noise at the root, completed-Q policy targets, and optionally its interior selector.
 #include "engine.hpp"
+#include "race_tablebase.hpp"
 #include <atomic>
 #include <cstring>
 #include <cmath>
@@ -18,6 +19,7 @@
 #include <thread>
 #include <unordered_map>
 #include <string>
+#include <chrono>
 using quoridor::Board;
 using Key = std::array<uint64_t, 3>;
 namespace {
@@ -189,6 +191,8 @@ struct Settings {
     bool gumbel=false, completedInterior=false, rescale=false;
     int candidates=16;
     double gumbelScale=1, valueScale=0.1, maxvisitInit=50;
+    int exactRace=0;
+    int raceDepth=12, raceNodes=2048;
 };
 // Completed Q-values of `node`'s edges, transformed to sigma (mctx qtransform_completed_by_mix_value):
 // unvisited edges get the mix of the raw network value and the prior-weighted Q of visited edges.
@@ -251,6 +255,79 @@ struct LeafHash {
         return size_t(h);
     }
 };
+struct ProofKey {
+    Key board{};
+    int left=0, horizon=0;
+    std::vector<std::pair<Key,uint8_t>> seen;
+    bool operator==(const ProofKey& other) const { return board==other.board && left==other.left && horizon==other.horizon && seen==other.seen; }
+};
+struct ProofKeyHash {
+    size_t operator()(const ProofKey& k) const {
+        uint64_t h=0x9e3779b97f4a7c15ull;
+        auto mix=[&](uint64_t v) { h^=v+0x9e3779b97f4a7c15ull+(h<<6)+(h>>2); h*=0xff51afd7ed558ccdull; h^=h>>32; };
+        for(auto v:k.board) mix(v);
+        mix(k.left); mix(k.horizon);
+        for(const auto& entry:k.seen) { for(auto v:entry.first) mix(v); mix(entry.second); }
+        return size_t(h);
+    }
+};
+struct ProofResult { int value=2; int64_t nodes=0; int64_t memoHits=0; };
+class RaceProof {
+public:
+    using Seen=std::map<Key,int>;
+private:
+    int cap;
+    int64_t nodes=0, memoHits=0;
+    std::unordered_map<ProofKey,int,ProofKeyHash> memo;
+    ProofKey state(const Board& b,int left,int horizon,const Seen& seen) const {
+        ProofKey key; key.board=packed(b); key.left=left; key.horizon=horizon;
+        key.seen.reserve(seen.size());
+        for(const auto& item:seen) if(item.second>0) key.seen.emplace_back(item.first,uint8_t(item.second));
+        return key;
+    }
+    int visit(Board& b,int left,int horizon,Seen& seen) {
+        if(nodes>=cap) return 2;
+        ++nodes;
+        int winner=b.winner();
+        if(winner!=-1) return winner==b.turn ? 1 : -1;
+        Key current=packed(b);
+        auto found=seen.find(current);
+        if(found!=seen.end() && found->second>=3) return 0;
+        if(left<=0) return 0;
+        if(horizon<=0) return 2;
+        ProofKey sk=state(b,left,horizon,seen);
+        if(auto it=memo.find(sk);it!=memo.end()) { ++memoHits; return it->second; }
+        int moves[136], n=b.generate(moves);
+        // Shortest-path distance is only an ordering hint; minimax still examines every
+        // move needed to prove a value, and unknown propagates when the cap is reached.
+        const int mover=b.turn;
+        std::vector<std::pair<int,int>> ordered; ordered.reserve(n);
+        for(int i=0;i<n;i++) {
+            Board child=b; child.sp=0; child.make(moves[i]);
+            ordered.emplace_back(child.distance(mover),moves[i]);
+        }
+        std::stable_sort(ordered.begin(),ordered.end(),[](const auto& a,const auto& b) { return a.first<b.first; });
+        int best=-1; bool unknown=false;
+        for(const auto& item:ordered) {
+            Board child=b; child.sp=0; child.make(item.second);
+            Key k=packed(child); ++seen[k];
+            int value=visit(child,left-1,horizon-1,seen);
+            if(--seen[k]==0) seen.erase(k);
+            if(value==2) unknown=true;
+            else { best=std::max(best,-value); if(best==1) break; }
+        }
+        int result=best==1 ? 1 : unknown ? 2 : best;
+        if(result!=2) memo.emplace(std::move(sk),result);
+        return result;
+    }
+public:
+    explicit RaceProof(int nodeCap):cap(std::max(1,nodeCap)) {}
+    ProofResult run(Board b,int left,int horizon,Seen seen) {
+        Key current=packed(b);
+        if(!seen.count(current)) seen[current]=1;
+        ProofResult result; result.value=visit(b,left,horizon,seen); result.nodes=nodes; result.memoHits=memoHits; return result;
+    }
+};
 struct Entry { std::vector<float> logits; float value; };
 // Shared across all games and threads. Log priors are stored in the node's edge order
 // (normalized over legal moves); first-in first-out eviction.
@@ -301,6 +378,11 @@ struct Job {
     Settings settings;
     Cache* cache=nullptr;
     std::atomic<int64_t>* hits=nullptr;
+    std::atomic<int64_t>* raceQueries=nullptr;
+    std::atomic<int64_t>* raceSolved=nullptr;
+    std::atomic<int64_t>* raceUnknown=nullptr;
+    std::atomic<int64_t>* raceNodes=nullptr;
+    std::atomic<int64_t>* raceNanoseconds=nullptr;
     Leaf leaf;  // Cache key of `pending`.
     bool active=false;
     int group=0;  // Waves evaluate one group while the other's batch is on the device.
@@ -344,6 +426,32 @@ struct Job {
         }
         branch.pop_back();
         return best==1 ? 1 : unknown ? 2 : best;
+    }
+    int solveRace(Board b,int depth,int nodeCap,int64_t& visited) const {
+        RaceProof::Seen seen;
+        for(const auto& h:history)
+            if(h.first[0]==b.hBits && h.first[1]==b.vBits && (((h.first[2]>>14)&15)==0) && (((h.first[2]>>18)&15)==0))
+                seen[h.first]+=h.second;
+        for(size_t i=1;i<path.size();i++)
+            if(path[i]->key[0]==b.hBits && path[i]->key[1]==b.vBits) seen[path[i]->key]++;
+        int left=std::max(0,maxPlies-(ply+int(path.size())-1));
+        if(settings.exactRace==2) {
+            using namespace quoridor::race_tablebase;
+            std::vector<HistoryEntry> entries;
+            for(const auto& h:seen) {
+                auto packed=h.first[2];
+                entries.push_back({{uint8_t(packed&127),uint8_t((packed>>7)&127),uint8_t((packed>>22)&1)},
+                                   uint8_t(std::min(3,h.second)),h.first[0],h.first[1]});
+            }
+            Tablebase table(b);
+            auto result=table.solve({uint8_t(b.pawn[0]),uint8_t(b.pawn[1]),uint8_t(b.turn)},left,entries);
+            visited=result.workStates;
+            return result.outcome;
+        }
+        RaceProof proof(nodeCap);
+        auto result=proof.run(b,left,depth,std::move(seen));
+        visited=result.nodes;
+        return result.value;
     }
     // Gumbel root: among edges whose visits equal the schedule (or the maximum, once done), the
     // highest Gumbel + log prior + sigma. Ties keep the lowest edge index.
@@ -395,8 +503,27 @@ struct Job {
                 if (repetitions(current)>=3 || ply+int(path.size())-1>=maxPlies) { backup(0); break; }
                 if (!current->expanded) {
                     if(current!=root && !current->board.walls[0] && !current->board.walls[1]) {
-                        std::vector<Key> branch; int budget=256;
-                        int value=solve(current->board,4,ply+int(path.size())-1,branch,budget);
+                        int value=2;
+                        if(settings.exactRace) {
+                            int left=std::max(0,maxPlies-(ply+int(path.size())-1));
+                            int depth=std::min(settings.raceDepth,left);
+                            int64_t visited=0;
+                            std::vector<Key> branch; int legacyBudget=256;
+                            value=solve(current->board,4,ply+int(path.size())-1,branch,legacyBudget);
+                            if(value==2) {
+                                auto start=std::chrono::steady_clock::now();
+                                value=solveRace(current->board,depth,settings.raceNodes,visited);
+                                auto ns=std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now()-start).count();
+                                if(raceQueries) ++*raceQueries;
+                                if(value==2) { if(raceUnknown) ++*raceUnknown; }
+                                else if(raceSolved) ++*raceSolved;
+                                if(raceNodes) *raceNodes+=visited;
+                                if(raceNanoseconds) *raceNanoseconds+=ns;
+                            }
+                        } else {
+                            std::vector<Key> branch; int budget=256;
+                            value=solve(current->board,4,ply+int(path.size())-1,branch,budget);
+                        }
                         if(value!=2) { backup(value); break; }
                     }
                     current->legal(); float value;
@@ -455,6 +582,7 @@ struct Pool {
     std::vector<int> leaves[2], rows[2];
     void reset() { jobs.clear(); for(int g=0;g<2;g++) { leaves[g].clear(); rows[g].clear(); } }
     std::atomic<int64_t> hits{0};
+    std::atomic<int64_t> raceQueries{0}, raceSolved{0}, raceUnknown{0}, raceNodes{0}, raceNanoseconds{0};
     int64_t duplicates=0, unique=0, waves=0;
     std::vector<std::unique_ptr<quoridor::Searcher>> opponents;
     explicit Pool(int workers):team(workers),opponents(workers) {}
@@ -530,10 +658,13 @@ int az_restore(Pool* p, const uint8_t* data, int size) {
 void* az_create(int workers) { try { error.clear(); return new Pool(workers); } catch(const std::exception& e) { error=e.what(); return nullptr; } }
 void az_destroy(Pool* p) { delete p; }
 int az_settings(Pool* p, double cpuct, double fpu, int gumbel, int completedInterior, int candidates,
-                double gumbelScale, double valueScale, double maxvisitInit, int rescale) {
+                double gumbelScale, double valueScale, double maxvisitInit, int rescale,
+                int exactRace, int raceDepth, int raceNodes) {
     return guard([&] {
         if(candidates<1) throw std::runtime_error("Gumbel candidates must be positive");
-        p->settings={cpuct,fpu,bool(gumbel),bool(completedInterior),bool(rescale),candidates,gumbelScale,valueScale,maxvisitInit};
+        if(raceDepth<1 || raceDepth>1000 || raceNodes<1) throw std::runtime_error("Invalid zero-wall proof limits");
+        p->settings={cpuct,fpu,bool(gumbel),bool(completedInterior),bool(rescale),candidates,gumbelScale,valueScale,maxvisitInit,
+                     exactRace,raceDepth,raceNodes};
         return 0;
     });
 }
@@ -598,6 +729,8 @@ int az_begin(Pool* p,int id,const uint64_t* position,int ply,int maxPlies,int si
         if(!root || root->key!=k || p->settings.gumbel) root=std::make_unique<Node>(b);
         Job j; j.root=root.get(); j.ply=ply; j.maxPlies=maxPlies; j.simulations=simulations; j.settings=p->settings;
         j.cache=&p->cache; j.hits=&p->hits; j.active=true; j.group=group;
+        j.raceQueries=&p->raceQueries; j.raceSolved=&p->raceSolved; j.raceUnknown=&p->raceUnknown;
+        j.raceNodes=&p->raceNodes; j.raceNanoseconds=&p->raceNanoseconds;
         // Retained visits count toward the budget; the root's own expansion is not a simulation.
         j.completed=std::min(simulations-1,std::max(0,root->visits-1));
         auto history=p->histories.find(id);
@@ -729,7 +862,26 @@ int az_cache(Pool* p,int64_t limit) { return guard([&] { if(limit<0) throw std::
 int az_cache_clear(Pool* p) { return guard([&] { p->cache.clear(); return 0; }); }
 // Cumulative: cache hits during selection, in-wave duplicates, distinct evaluations, waves.
 int az_stats(Pool* p,int64_t* out) {
-    return guard([&] { out[0]=p->hits; out[1]=p->duplicates; out[2]=p->unique; out[3]=p->waves; return 0; });
+    return guard([&] { out[0]=p->hits; out[1]=p->duplicates; out[2]=p->unique; out[3]=p->waves;
+        out[4]=p->raceQueries; out[5]=p->raceSolved; out[6]=p->raceUnknown; out[7]=p->raceNodes; out[8]=p->raceNanoseconds; return 0; });
+}
+int az_race_solve(const uint64_t* position,int ply,int maxPlies,int depth,int nodeCap,
+                  const uint64_t* historyKeys,const int32_t* historyCounts,int n,int64_t* out) {
+    return guard([&] {
+        if(ply<0 || maxPlies<ply || depth<1 || nodeCap<1 || n<0) throw std::runtime_error("Invalid zero-wall proof arguments");
+        Board b=unpack(position);
+        if(b.walls[0] || b.walls[1]) throw std::runtime_error("Zero-wall proof requires both wall reserves to be zero");
+        RaceProof::Seen seen;
+        for(int i=0;i<n;i++) {
+            if(historyCounts[i]<1 || historyCounts[i]>3) throw std::runtime_error("Invalid repetition count");
+            Key k{historyKeys[3*i],historyKeys[3*i+1],historyKeys[3*i+2]};
+            if(k[0]==b.hBits && k[1]==b.vBits && (((k[2]>>14)&15)==0) && (((k[2]>>18)&15)==0))
+                seen[k]=historyCounts[i];
+        }
+        RaceProof proof(nodeCap);
+        auto result=proof.run(b,maxPlies-ply,std::min(depth,maxPlies-ply),std::move(seen));
+        out[0]=result.value; out[1]=result.nodes; out[2]=result.memoHits; return 0;
+    });
 }
 int az_negamax(Pool* p,const uint64_t* positions,int n,const int32_t* nodes,int64_t* out) {
     return guard([&] {

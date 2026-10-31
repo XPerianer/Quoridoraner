@@ -1,0 +1,9 @@
+{
+  "source_zip_sha256": "8d9ba2245ce976c7207cb463e090e2478d428f7d392e2b9bd3d0e790d1bec84f",
+  "files": {
+    "az.py": "e7b312aeb5fa6005a03dc91d367aaa88dba709e5e9b28e51cbaa1fa29c2c9a72",
+    "native/az.cpp": "44601d33fd4922f379faa693cf7799f37450ccad38e555cb34f95b68ea6f65c0",
+    "native/race_tablebase.hpp": "b863520996c3db42b2067fc16e1ba163f19493c6f2f373e6998d27401873da90",
+    "native/engine.hpp": "7b62f75634f949288720fa405a9198bf72c97ffd222997d4c8b445cd55bd441e"
+  }
+}
