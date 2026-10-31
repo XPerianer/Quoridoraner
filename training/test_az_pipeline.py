@@ -101,6 +101,7 @@ class PipelineTest(unittest.TestCase):
             self.assertEqual([row['prev_eval']['opponent'] for row in metrics],
                              ['model-h000-it00000', 'model-h000-it00001'])
             self.assertEqual(metrics[0]['prev_eval']['games'], 2)
+            self.assertEqual(json.loads((snapshots / 'config.json').read_text())['prev_eval_pairs'], 1)
 
     def test_lost_process_recovers_inflight_checkpoint(self):
         script = Path(__file__).with_name('az.py')

@@ -1202,8 +1202,9 @@ def cmd_rl(args):
                            data.policy[i] if data.has_policy[i] else None, data.value[i])
         (out / 'config.json').write_text(json.dumps(settings(args), indent=1))
         if args.snapshot_dir:
-            # Hour-0 anchor: the starting network, the opponent of the first previous-snapshot match.
+            # Hour-0 anchor (the opponent of the first previous-snapshot match) and the settings, for reports.
             Path(args.snapshot_dir).mkdir(parents=True, exist_ok=True)
+            (Path(args.snapshot_dir) / 'config.json').write_text(json.dumps(settings(args), indent=1))
             save_model(model, Path(args.snapshot_dir) / 'model-h000-it00000.pt', iteration=0, spent_seconds=0,
                        totals=dict(games=0, positions=0, steps=0, policy_rows=0))
     if device == 'cuda':
