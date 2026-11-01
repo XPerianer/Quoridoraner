@@ -13,7 +13,7 @@ import sys
 import time
 
 import torch
-from az import Engine, START, load_model, turn, winner
+from az import Engine, START, infer, load_model, turn, winner
 
 HERE = Path(__file__).resolve().parent
 RUNS = HERE.parent / 'experiments/training'
@@ -63,10 +63,11 @@ class Sigma:
         from dual_network import make_nn_evaluator
         self.PawnAction = PawnAction
         self.state = State(boardsize=9, walls_p1=10, walls_p2=10, walls_initial=10)
-        self.agent = MCTSAgent(evaluator=make_nn_evaluator(
-            str(BOTS / 'SigmaQuoridor/runs/models_9x9_scratch/best.pt'),
-            device=torch.device('cpu')), num_simulations=sims,
-            training=False, temperature=0.0)
+        self.evaluator = make_nn_evaluator(str(BOTS / 'SigmaQuoridor/runs/models_9x9_scratch/best.pt'),
+                                           device=torch.device('cpu'))
+        # sims == 0: no search, play the highest-prior legal action.
+        self.agent = sims and MCTSAgent(evaluator=self.evaluator, num_simulations=sims,
+                                        training=False, temperature=0.0)
 
     def encode(self, action):
         if isinstance(action, self.PawnAction):
@@ -91,6 +92,10 @@ class Sigma:
             self.state._legal_actions_cache = cache
 
     def choose(self):
+        if not self.agent:
+            legal = self.state.get_legal_actions()
+            priors, _ = self.evaluator(self.state, legal)
+            return self.encode(legal[max(range(len(legal)), key=priors.__getitem__)])
         return self.encode(self.agent.select_action(self.state))
 
     def advance(self, move):
@@ -179,10 +184,11 @@ def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument('--opponents', nargs='+', choices=['gorisanson', 'sigma', 'borowski'], default=['gorisanson', 'sigma'])
     p.add_argument('--model', type=Path, default=RUNS / 'az/colab/rl-model.pt')
-    p.add_argument('--simulations', type=int, default=400)
+    p.add_argument('--simulations', type=int, default=400, help='0: our raw policy argmax, no search')
     p.add_argument('--goris-sims', type=int, default=60000)
-    p.add_argument('--sigma-sims', type=int, default=400)
+    p.add_argument('--sigma-sims', type=int, default=400, help="0: Sigma's raw policy argmax, no search")
     p.add_argument('--pairs', type=int, default=1)
+    p.add_argument('--first-pair', type=int, default=0, help='Skip earlier pairs (their openings are still drawn) to shard a run')
     p.add_argument('--seed', type=int, default=20261029)
     p.add_argument('--max-plies', type=int, default=200)
     p.add_argument('--validate', action='store_true')
@@ -239,6 +245,8 @@ def main():
                     move = rng.choice(engine.legal(pos))
                     opening.append(move)
                     pos = engine.advance(pos, move)
+            if pair < args.first_pair:
+                continue
             for color in (0, 1):
                 game_id = f'{name}-pair{pair}-ours{color}'
                 saved_path = args.out / f'{game_id}.json'
@@ -264,7 +272,13 @@ def main():
                     for ply in range(len(opening), args.max_plies):
                         check(engine, pos, opponent)
                         t = time.perf_counter()
-                        if turn(pos) == color:
+                        if turn(pos) == color and not args.simulations:
+                            features = engine.features([pos], [history[pos]], [(args.max_plies - ply) / args.max_plies], [0])
+                            logits, value = infer(model, features, 'cpu')
+                            legal = engine.legal(pos)
+                            move = max(legal, key=lambda m: logits[0, engine.canonical[turn(pos), 0, m]])
+                            value = float(value[0])
+                        elif turn(pos) == color:
                             pi, value = engine.search(model, [dict(tree=0, position=pos, history=history,
                                 ply=ply, max_plies=args.max_plies)], args.simulations, torch.device('cpu'))
                             move = int(pi[0].argmax())
