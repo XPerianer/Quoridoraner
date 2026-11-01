@@ -10,6 +10,7 @@ import { api, type Run } from './dashboard-api'
 type Controller = string
 const NAMES = ['White', 'Black'] as const
 const MIN_ENGINE_MOVE_MS = 400
+const REPLAY_MOVE_MS = 700
 const NODE_LIMITS = [10_000, 50_000, 200_000, 1_000_000, 5_000_000, DEFAULT_OPTIONS.maxNodes]
 
 interface Search {
@@ -24,9 +25,12 @@ function replay(history: Move[]): Board {
 }
 
 export default function App({ runs = [] }: { runs?: Run[] }) {
-  const [history, setHistory] = useState<Move[]>([])
-  // ?white=…&black=…&sims=… preselects the arena players (values as in the player menus).
+  // ?white=…&black=…&sims=… preselects the arena players (values as in the player menus);
+  // ?moves=… replays a recorded game given as comma-separated move IDs (e.g. from external_arena.py records).
   const query = new URLSearchParams(window.location.search)
+  const [recorded] = useState<Move[]>(() => query.get('moves')?.split(',').filter(Boolean).map(Number) ?? [])
+  const [replaying, setReplaying] = useState(recorded.length > 0)
+  const [history, setHistory] = useState<Move[]>([])
   const [controllers, setControllers] = useState<[Controller, Controller]>([query.get('white') ?? 'human', query.get('black') ?? 'engine'])
   const [options, setOptions] = useState<SearchOptions>(DEFAULT_OPTIONS)
   const [paused, setPaused] = useState(false)
@@ -97,6 +101,21 @@ export default function App({ runs = [] }: { runs?: Run[] }) {
       clearTimeout(timer)
     }
   }, [thinking, runSearch, board, controllers, turn, simulations, positions])
+
+  // Replay follows the recorded game only while the board is still on it.
+  const onRecord = history.length < recorded.length && history.every((m, i) => m === recorded[i])
+  const autoplay = replaying && onRecord
+  useEffect(() => {
+    if (!autoplay) return
+    const timer = window.setTimeout(() => setHistory(h => recorded.slice(0, h.length + 1)), REPLAY_MOVE_MS)
+    return () => clearTimeout(timer)
+  }, [autoplay, history, recorded])
+
+  const stepReplay = (delta: number) => {
+    stopAnalysis()
+    setReplaying(false)
+    setHistory(h => recorded.slice(0, Math.max(0, Math.min(recorded.length, h.length + delta))))
+  }
 
   const analyze = () => {
     setAnalyzing(true)
@@ -197,6 +216,16 @@ export default function App({ runs = [] }: { runs?: Run[] }) {
               <button onClick={() => setPaused(!paused)}>{paused ? 'Resume' : 'Pause'}</button>
             )}
           </div>
+          {recorded.length > 0 && (
+            <div className="button-row">
+              <button onClick={() => stepReplay(-1)} disabled={history.length === 0}>◀ Back</button>
+              <button onClick={() => { if (!onRecord) setHistory([]); setReplaying(!autoplay) }}>
+                {autoplay ? 'Pause replay' : 'Play replay'}
+              </button>
+              <button onClick={() => stepReplay(1)} disabled={history.length >= recorded.length}>Forward ▶</button>
+              <span className="muted small">Ply {history.length} / {recorded.length}</span>
+            </div>
+          )}
 
           <div className="panel settings">
             <div className="field-row">
