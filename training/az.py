@@ -32,6 +32,17 @@ NATIVE = HERE / 'native'
 LIBRARY = NATIVE / 'build' / ('az.dylib' if sys.platform == 'darwin' else 'az.so')
 START = (0, 0, 76 | (4 << 7) | (10 << 14) | (10 << 18))
 MOVES = 209
+# Compact order: pawns, wall orientations, goal distances, shortest-path masks, wall counts.
+SIMPLIFIED_PLANES = (0, 1, 2, 3, 8, 9, 10, 11, 12, 13)
+
+
+def model_inputs(x, planes):
+    """Keep native/replay encoding compatible with legacy checkpoints and mixed-model matches."""
+    if planes == len(SIMPLIFIED_PLANES) and x.shape[1] == 19:
+        return x[:, SIMPLIFIED_PLANES, :, :]
+    if x.shape[1] != planes:
+        raise ValueError(f'Expected {planes} input channels, received {x.shape[1]}')
+    return x
 
 
 def playout_budget(rng, mode, fallback):
@@ -434,10 +445,17 @@ class Net(nn.Module):
                                         nn.Flatten(), nn.Linear(4 * 81, 128), nn.ReLU(), nn.Linear(128, 1))
 
     def forward(self, x):
+        x = model_inputs(x, self.config['planes'])
         h = self.tower(self.stem(x * self.mask))
         p = self.policy_head(h)
         logits = torch.cat((p[:, 0].flatten(1), p[:, 1, :8, :8].flatten(1), p[:, 2, :8, :8].flatten(1)), 1)
         return logits, self.value_head(h).squeeze(1).tanh()
+
+
+def model_from_args(args, planes):
+    if getattr(args, 'feature_set', 'full') == 'simplified':
+        planes = len(SIMPLIFIED_PLANES)
+    return Net(planes, args.channels, args.blocks, getattr(args, 'drop_planes', ()))
 
 
 @torch.inference_mode()
@@ -1072,7 +1090,7 @@ def cmd_pretrain(args):
     device = pick_device(args.device)
     engine = Engine(args.workers)
     data = Replay.load(args.data)
-    model = Net(engine.planes, args.channels, args.blocks, args.drop_planes).to(device)
+    model = model_from_args(args, engine.planes).to(device)
     if device == 'cuda':
         model.to(memory_format=torch.channels_last)
     optimizer = new_optimizer(model, args.lr)
@@ -1189,7 +1207,7 @@ def cmd_rl(args):
         if args.init:
             model, _ = load_model(args.init, device)
         else:
-            model = Net(engine.planes, args.channels, args.blocks).to(device).eval()
+            model = model_from_args(args, engine.planes).to(device).eval()
         optimizer = new_rl_optimizer(model, args.lr, args.optimizer)
         iteration, metrics = 0, []
         replay = Replay(args.replay)
@@ -1435,6 +1453,8 @@ def main():
     common(p)
     p.add_argument('--data', required=True)
     p.add_argument('--out', required=True)
+    p.add_argument('--feature-set', choices=('full', 'simplified'), default='full',
+                   help='New models: full 19 channels or simplified 10; init/resume uses checkpoint encoding')
     p.add_argument('--channels', type=int, default=64)
     p.add_argument('--blocks', type=int, default=6)
     p.add_argument('--epochs', type=float, default=4)
@@ -1443,7 +1463,7 @@ def main():
     p.add_argument('--eval-pairs', type=int, default=20)
     p.add_argument('--simulations', type=int, default=128)
     p.add_argument('--drop-planes', type=int, nargs='*', default=[],
-                   help='Ablation: zero these input planes (path features are 4-11 and 14)')
+                   help='Ablation: zero input indices in the selected encoding (full path: 4-11,14; simplified path: 4-7)')
     p.set_defaults(fn=cmd_pretrain)
 
     p = sub.add_parser('rl')
@@ -1451,6 +1471,8 @@ def main():
     p.add_argument('--out', required=True)
     p.add_argument('--init', help='Pretrained model.pt; omit to start from random weights')
     p.add_argument('--mix-data', help='Supervised .npz to seed a quarter of the replay buffer')
+    p.add_argument('--feature-set', choices=('full', 'simplified'), default='full',
+                   help='New models: full 19 channels or simplified 10; init/resume uses checkpoint encoding')
     p.add_argument('--channels', type=int, default=64)
     p.add_argument('--blocks', type=int, default=6)
     p.add_argument('--iterations', type=int, default=50)
