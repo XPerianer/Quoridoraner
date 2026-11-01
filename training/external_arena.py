@@ -252,6 +252,8 @@ def main():
                 opponent = make_opponent(name, args, args.seed + pair)
                 engine.clear()
                 pos, history, moves = START, {START: 1}, []
+                # The native engine only advances trees with a registered history.
+                engine.history(0, history)
                 try:
                     for move in opening:
                         opponent.advance(move)
