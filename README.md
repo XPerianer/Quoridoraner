@@ -140,3 +140,7 @@ and `npm run dev` in separate terminals, then open
 **http://localhost:5173/?dashboard=1**; Vite proxies `/api` to port 8765.
 The dashboard's experiment-model controllers use its local Python server; the
 default public arena uses the separate static model catalog and browser inference.
+
+## License
+
+MIT — see [LICENSE](LICENSE).
