@@ -1,0 +1,30 @@
+{
+  "id": "resnet-small",
+  "name": "ResNet \u00b7 pretrained",
+  "url": "models/resnet-small-f7c6045fad34.onnx",
+  "sha256": "f7c6045fad34b21b34f30bfebeb5ad8555961c2c774411672ee3c01e4991be7a",
+  "bytes": 2110218,
+  "planes": 19,
+  "simulations": 32,
+  "config": {
+    "planes": 19,
+    "channels": 64,
+    "blocks": 6,
+    "drop_planes": []
+  },
+  "contract": "az-v1",
+  "input": "features",
+  "outputs": {
+    "logits": "logits",
+    "value": "value"
+  },
+  "sourceSha256": "932b420675f0c4635a5bfe88d2bfc6d21e29abbc6a11cf5bfddf132927abfb4c",
+  "fixtureCount": 16,
+  "parityMaxAbsoluteError": {
+    "logits": 5.930662155151367e-06,
+    "value": 3.8743019104003906e-07
+  },
+  "pytorch": "2.14.1",
+  "onnx": "1.23.2",
+  "onnxruntime": "1.31.1"
+}

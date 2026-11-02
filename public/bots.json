@@ -1,0 +1,47 @@
+{
+  "version": 1,
+  "bots": [
+    {
+      "id": "resnet-small",
+      "name": "ResNet \u00b7 pretrained",
+      "url": "models/resnet-small-f7c6045fad34.onnx",
+      "sha256": "f7c6045fad34b21b34f30bfebeb5ad8555961c2c774411672ee3c01e4991be7a",
+      "bytes": 2110218,
+      "planes": 19,
+      "simulations": 32,
+      "config": {
+        "planes": 19,
+        "channels": 64,
+        "blocks": 6,
+        "drop_planes": []
+      },
+      "contract": "az-v1",
+      "input": "features",
+      "outputs": {
+        "logits": "logits",
+        "value": "value"
+      }
+    },
+    {
+      "id": "resnet-rl",
+      "name": "ResNet \u00b7 self-play",
+      "url": "models/resnet-rl-83f76b57c958.onnx",
+      "sha256": "83f76b57c95836a237af7a2135eb2e474010b037b6b1e7f5b5192a306d0a8c56",
+      "bytes": 12766022,
+      "planes": 19,
+      "simulations": 32,
+      "config": {
+        "planes": 19,
+        "channels": 128,
+        "blocks": 10,
+        "drop_planes": []
+      },
+      "contract": "az-v1",
+      "input": "features",
+      "outputs": {
+        "logits": "logits",
+        "value": "value"
+      }
+    }
+  ]
+}

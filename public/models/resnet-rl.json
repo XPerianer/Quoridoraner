@@ -1,0 +1,30 @@
+{
+  "id": "resnet-rl",
+  "name": "ResNet \u00b7 self-play",
+  "url": "models/resnet-rl-83f76b57c958.onnx",
+  "sha256": "83f76b57c95836a237af7a2135eb2e474010b037b6b1e7f5b5192a306d0a8c56",
+  "bytes": 12766022,
+  "planes": 19,
+  "simulations": 32,
+  "config": {
+    "planes": 19,
+    "channels": 128,
+    "blocks": 10,
+    "drop_planes": []
+  },
+  "contract": "az-v1",
+  "input": "features",
+  "outputs": {
+    "logits": "logits",
+    "value": "value"
+  },
+  "sourceSha256": "f74d21d56445ff37fe8d8a35100ef02a400cfc1d4d38371dd7e216265cce13b6",
+  "fixtureCount": 16,
+  "parityMaxAbsoluteError": {
+    "logits": 4.3392181396484375e-05,
+    "value": 6.705522537231445e-07
+  },
+  "pytorch": "2.14.1",
+  "onnx": "1.23.2",
+  "onnxruntime": "1.31.1"
+}

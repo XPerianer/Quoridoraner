@@ -1,0 +1,80 @@
+.start-screen {
+  max-width: 720px;
+  margin: 24px auto 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  text-align: center;
+}
+.start-intro h2 {
+  font-size: 26px;
+}
+.start-intro p {
+  margin: 8px 0 0;
+  color: var(--ink-2);
+  font-size: 15px;
+}
+.choice-cards {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  width: 100%;
+}
+.choice-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 28px 16px;
+  border-radius: 14px;
+  border-width: 2px;
+  color: var(--ink);
+}
+.choice-card strong {
+  font-size: 18px;
+}
+.choice-card span {
+  color: var(--ink-2);
+}
+.choice-card .icon {
+  color: var(--accent);
+}
+.choice-card[aria-pressed='true'] {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 20%, transparent);
+}
+.choice-card:hover:not([aria-pressed='true']) {
+  border-color: var(--axis);
+}
+.start-setup {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+}
+.start-setup .preset-field {
+  align-items: center;
+}
+.start-button {
+  padding: 10px 28px;
+  font-size: 16px;
+  border-radius: 10px;
+}
+.arena-error {
+  padding: 12px;
+  margin-bottom: 12px;
+  border: 1px solid var(--critical);
+  border-radius: 8px;
+}
+.arena-runtime-status {
+  color: var(--ink-2);
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+}
+@media (max-width: 650px) {
+  .choice-cards { grid-template-columns: 1fr; }
+  .choice-card { padding: 18px 14px; }
+  .side-fields select { max-width: min(82vw, 360px); }
+}

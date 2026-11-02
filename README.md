@@ -1,6 +1,8 @@
 # Quoridoraner
 
-Quoridor in the browser with a negamax / alpha-beta engine and a live view of its search space.
+Play Quoridor against bots or watch them play each other. The public arena runs
+the built-in negamax engine and trained ResNet bots on the visitor's own device,
+with no Python service required. Negamax includes a live view of its search space.
 Written in TypeScript (Vite + React). The original wxWidgets/C++ version lives in [`legacy-cpp/`](legacy-cpp/).
 
 ## Running
@@ -13,6 +15,42 @@ npm run bench    # search benchmark in Node: npm run bench -- all 5
 npm run build    # static site in dist/
 npm run selfplay -- selfplay/experiments/wall-weight.json   # engine-vs-engine tuning, see selfplay/README.md
 ```
+
+The default page is the public arena. Choose to play against a bot or watch two
+bots, pick a strength preset, and start. Advanced bot settings and the analysis
+engine are in collapsible sections. The share button copies a link to the current
+game or to the bot settings.
+
+## Browser neural bots and deployment
+
+The arena includes a pretrained ResNet (2.1 MB) and a self-play ResNet (12.8 MB).
+ONNX Runtime Web runs their inference in a worker, using WebGPU when available
+and falling back to WebAssembly CPU. The AZ feature encoder and PUCT search also
+run in the worker. Models download only when selected, are checked against their
+SHA-256 hashes, and are cached locally when browser storage is available. The
+runtime retains up to two loaded model sessions.
+
+Neural simulations set the search budget; a 15-second search limit is checked
+between simulations. Initial runtime/model loading takes additional time. The
+ONNX runtime WASM asset (roughly 7 MB compressed) loads from jsDelivr, separate
+from the model downloads. Device speed affects move times.
+The bot labels describe training provenance, not a measured strength ranking.
+
+```sh
+npm run build
+npm run preview  # review the production build locally
+```
+
+Deploy the complete `dist/` directory to a static HTTPS host, including its
+`assets/`, `models/` and `bots.json` files. The public site is on Cloudflare Pages
+at quoridor.dominikmeier.io. No Python inference server or `/api`
+routes are needed for public play. HTTPS enables browser GPU and cryptographic
+APIs; localhost also works for development. The current single-threaded WASM
+configuration does not require cross-origin isolation headers. For hosting under
+a subpath, build with the corresponding Vite `--base` option.
+
+See [model export instructions](training/WEB_EXPORT.md) for adding trusted
+checkpoints and [launch status and remaining checks](docs/website-launch.md).
 
 ## Train neural bots
 
@@ -81,7 +119,7 @@ reproducible timings, and the optional PyTorch/MPS batch experiment.
 npm run dashboard
 ```
 
-Open **http://127.0.0.1:8765**. This builds the frontend and starts a local Python
+Open **http://127.0.0.1:8765/?dashboard=1**. This builds the frontend and starts a local Python
 server using the existing `.venv` training dependencies. Training runs under
 `experiments/training` are discovered automatically, including nested run directories.
 Select runs to compare evaluation scores, goal rates, policy/value losses, and
@@ -97,5 +135,8 @@ when their files change. Exports reflect the latest pause/completion, while
 training charts reflect the latest saved checkpoint. Matches adjudicate threefold
 repetition and 200 plies as draws. These are artificial match limits.
 
-For frontend development, run `.venv/bin/python training/dashboard.py` and
-`npm run dev` in separate terminals; Vite proxies `/api` to port 8765.
+For dashboard frontend development, run `.venv/bin/python training/dashboard.py`
+and `npm run dev` in separate terminals, then open
+**http://localhost:5173/?dashboard=1**; Vite proxies `/api` to port 8765.
+The dashboard's experiment-model controllers use its local Python server; the
+default public arena uses the separate static model catalog and browser inference.
