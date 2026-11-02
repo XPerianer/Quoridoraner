@@ -81,14 +81,16 @@ The site is hosted on Cloudflare Pages, separate from the GitHub Pages homepage
 on the apex domain, so its traffic cannot affect the homepage. The free plan has
 no bandwidth limit for static assets.
 
-1. Cloudflare dashboard: Workers & Pages → Create → Pages → Connect to Git, and
-   select this repository. Production branch `main`, framework preset none,
-   build command `npm run build`, output directory `dist`. `.node-version` pins
-   the Node major used by the build.
-2. In the project, Custom domains → add `quoridor.dominikmeier.io`.
-3. DNS stays at Namecheap: add a `CNAME` record with host `quoridor` and the
-   project's `<project>.pages.dev` hostname as target. Cloudflare issues the
-   certificate once the record resolves.
+The Pages project `quoridoraner` uses direct upload, not a Git connection, so
+pushing does not deploy. `npm run deploy` builds and uploads `dist/` as the
+production deployment; wrangler must be logged in to the Cloudflare account. It
+was created with `wrangler pages project create quoridoraner --production-branch
+main --force`, where `--force` keeps it a Pages project instead of a Workers one
+(Workers custom domains need the DNS zone on Cloudflare).
+
+The custom domain `quoridor.dominikmeier.io` is attached to the project. DNS
+stays at Namecheap, with a `CNAME` record for host `quoridor` pointing to
+`quoridoraner.pages.dev`; Cloudflare issues the certificate once it resolves.
 
 `public/_headers` gives `/assets/*` and the hashed `/models/*.onnx` a one-year
 immutable cache; everything else keeps Cloudflare's revalidating default.

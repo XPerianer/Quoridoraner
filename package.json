@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build && node scripts/check-dist.mjs",
+    "deploy": "npm run build && npx --yes wrangler@4 pages deploy dist --project-name quoridoraner --branch main",
     "lint": "oxlint",
     "preview": "vite preview",
     "test": "vitest run",
