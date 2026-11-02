@@ -1,0 +1,3 @@
+artifacts/
+*.pt
+*.npz

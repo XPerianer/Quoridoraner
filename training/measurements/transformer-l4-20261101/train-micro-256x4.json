@@ -1,0 +1,185 @@
+{
+  "torch_version": "2.11.0+cu130",
+  "device": "NVIDIA L4",
+  "config": {
+    "architecture": "transformer",
+    "planes": 19,
+    "width": 256,
+    "blocks": 4,
+    "heads": 4,
+    "expansion": 2,
+    "drop_planes": []
+  },
+  "model": null,
+  "repeats": 50,
+  "description": "Production CUDA graphs; chunked timings include output clones and concatenation; setup and host/device input transfer excluded.",
+  "measurements": [
+    {
+      "batch": 1024,
+      "chunk": null,
+      "setup_seconds": 0.021781578000172885,
+      "wall_ms": 22.017505459998574,
+      "gpu_ms": 22.01501708984375,
+      "positions_per_second": 46508.44764682376,
+      "max_abs_error": [
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "batch": 1024,
+      "chunk": 64,
+      "setup_seconds": 0.026308535999987726,
+      "wall_ms": 13.189780859997882,
+      "gpu_ms": 13.188157958984375,
+      "positions_per_second": 77635.86149528829,
+      "max_abs_error": [
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "batch": 1024,
+      "chunk": 128,
+      "setup_seconds": 0.021243985999944925,
+      "wall_ms": 14.328994160000548,
+      "gpu_ms": 14.327623291015625,
+      "positions_per_second": 71463.49482495434,
+      "max_abs_error": [
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "batch": 1024,
+      "chunk": 256,
+      "setup_seconds": 0.03376206099983392,
+      "wall_ms": 18.45122790000005,
+      "gpu_ms": 18.44969482421875,
+      "positions_per_second": 55497.6614862579,
+      "max_abs_error": [
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "batch": 1024,
+      "chunk": 512,
+      "setup_seconds": 0.050429873999974006,
+      "wall_ms": 20.485035459996652,
+      "gpu_ms": 20.4834814453125,
+      "positions_per_second": 49987.70941840329,
+      "max_abs_error": [
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "batch": 2048,
+      "chunk": null,
+      "setup_seconds": 0.04375066599982347,
+      "wall_ms": 44.36425558000337,
+      "gpu_ms": 44.362119140625,
+      "positions_per_second": 46163.290090752926,
+      "max_abs_error": [
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "batch": 2048,
+      "chunk": 64,
+      "setup_seconds": 0.03417354499993053,
+      "wall_ms": 26.915918479999164,
+      "gpu_ms": 26.91409912109375,
+      "positions_per_second": 76088.80230194781,
+      "max_abs_error": [
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "batch": 2048,
+      "chunk": 128,
+      "setup_seconds": 0.024958144999800425,
+      "wall_ms": 28.405357179999555,
+      "gpu_ms": 28.40364990234375,
+      "positions_per_second": 72099.07578426838,
+      "max_abs_error": [
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "batch": 2048,
+      "chunk": 256,
+      "setup_seconds": 0.03604491000010057,
+      "wall_ms": 36.876800820000426,
+      "gpu_ms": 36.874814453125,
+      "positions_per_second": 55536.27089281701,
+      "max_abs_error": [
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "batch": 2048,
+      "chunk": 512,
+      "setup_seconds": 0.04103397499989114,
+      "wall_ms": 41.42226980000032,
+      "gpu_ms": 41.42,
+      "positions_per_second": 49442.0032964969,
+      "max_abs_error": [
+        0.0,
+        0.0
+      ]
+    }
+  ],
+  "training": [
+    {
+      "batch": 1024,
+      "chunk": 0,
+      "repeats": 20,
+      "warmup_steps": 3,
+      "wall_ms": 125.37602235000804,
+      "gpu_ms": 125.3708740234375,
+      "positions_per_second": 8167.430907493089,
+      "gradient_relative_l2_error": 0.0,
+      "gradient_max_abs_error": 0.0,
+      "gradient_tolerance": 0.05,
+      "full_batch_loss": 5.719221591949463,
+      "peak_allocated_mb": 2708.869140625,
+      "description": "Eager bf16; weighted gradient accumulation; clipping and AdamW once per full batch"
+    },
+    {
+      "batch": 1024,
+      "chunk": 128,
+      "repeats": 20,
+      "warmup_steps": 3,
+      "wall_ms": 91.71252295000158,
+      "gpu_ms": 91.70979614257813,
+      "positions_per_second": 11165.323633701022,
+      "gradient_relative_l2_error": 0.0026483686704021204,
+      "gradient_max_abs_error": 0.0002593994140625,
+      "gradient_tolerance": 0.05,
+      "full_batch_loss": 5.719221591949463,
+      "peak_allocated_mb": 457.423828125,
+      "description": "Eager bf16; weighted gradient accumulation; clipping and AdamW once per full batch"
+    },
+    {
+      "batch": 1024,
+      "chunk": 256,
+      "repeats": 20,
+      "warmup_steps": 3,
+      "wall_ms": 98.49273275000314,
+      "gpu_ms": 98.48914184570313,
+      "positions_per_second": 10396.706146829572,
+      "gradient_relative_l2_error": 0.0026985880480695054,
+      "gradient_max_abs_error": 0.000244140625,
+      "gradient_tolerance": 0.05,
+      "full_batch_loss": 5.719221591949463,
+      "peak_allocated_mb": 791.17822265625,
+      "description": "Eager bf16; weighted gradient accumulation; clipping and AdamW once per full batch"
+    }
+  ]
+}

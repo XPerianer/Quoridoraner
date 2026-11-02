@@ -1,0 +1,22 @@
+{
+  "status": "training",
+  "iteration": 14,
+  "hours": 1.9029444369342592,
+  "teacher_weight": 0.5599437958167659,
+  "teacher_kl": 0.22232518205604704,
+  "policy": 1.1555344262921003,
+  "value": 0.3700071382095139,
+  "seconds": 513.790632724762,
+  "anchors": [
+    [
+      8,
+      0.23
+    ]
+  ],
+  "models": [
+    "model-h000-it00000.pt",
+    "model-h001-it00008.pt"
+  ],
+  "evals": {},
+  "checked_utc": "2026-11-02 01:04:00 UTC"
+}

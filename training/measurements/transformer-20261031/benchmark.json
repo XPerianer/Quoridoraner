@@ -1,0 +1,139 @@
+{
+  "torch_version": "2.11.0+cu130",
+  "device": "NVIDIA L4",
+  "models": [
+    {
+      "architecture": "transformer",
+      "config": {
+        "architecture": "transformer",
+        "planes": 19,
+        "width": 192,
+        "blocks": 6,
+        "heads": 6,
+        "expansion": 2,
+        "drop_planes": []
+      },
+      "parameters": 1850696,
+      "inference": [
+        {
+          "batch": 64,
+          "setup_seconds": 23.343979340999795,
+          "gpu_ms": 0.7049215793609619,
+          "wall_ms": 0.7089167499998439,
+          "positions_per_second": 90278.58348672689,
+          "max_abs_error": [
+            0.0078125,
+            0.001953125
+          ]
+        },
+        {
+          "batch": 256,
+          "setup_seconds": 0.020482774000356585,
+          "gpu_ms": 3.884748840332031,
+          "wall_ms": 3.8880811000126414,
+          "positions_per_second": 65842.24799198958,
+          "max_abs_error": [
+            0.0087890625,
+            0.0032958984375
+          ]
+        },
+        {
+          "batch": 1024,
+          "setup_seconds": 0.10290442599989547,
+          "gpu_ms": 25.367398071289063,
+          "wall_ms": 25.372314549986186,
+          "positions_per_second": 40358.951012632686,
+          "max_abs_error": [
+            0.0107421875,
+            0.00390625
+          ]
+        },
+        {
+          "batch": 2048,
+          "setup_seconds": 0.19310846000007587,
+          "gpu_ms": 54.4342529296875,
+          "wall_ms": 54.440218100012316,
+          "positions_per_second": 37619.246789893674,
+          "max_abs_error": [
+            0.01123046875,
+            0.003662109375
+          ]
+        }
+      ],
+      "graph_replay_and_weight_refresh": "passed",
+      "peak_inference_allocated_mb": 820.99365234375,
+      "training_smoke": {
+        "batch": 256,
+        "loss": 5.373839378356934,
+        "gradient_norm": 0.6635863184928894,
+        "seconds": 0.6126847239997915,
+        "status": "passed"
+      }
+    },
+    {
+      "architecture": "resnet",
+      "config": {
+        "planes": 19,
+        "channels": 128,
+        "blocks": 10,
+        "drop_planes": []
+      },
+      "parameters": 3188012,
+      "inference": [
+        {
+          "batch": 64,
+          "setup_seconds": 14.710240710000107,
+          "gpu_ms": 0.6150144100189209,
+          "wall_ms": 0.6171727499804547,
+          "positions_per_second": 103698.68080213656,
+          "max_abs_error": [
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "batch": 256,
+          "setup_seconds": 0.2720079010000518,
+          "gpu_ms": 1.8955263137817382,
+          "wall_ms": 1.8975931500108345,
+          "positions_per_second": 134907.7382570328,
+          "max_abs_error": [
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "batch": 1024,
+          "setup_seconds": 0.2188559249998434,
+          "gpu_ms": 10.401741027832031,
+          "wall_ms": 10.40495990000636,
+          "positions_per_second": 98414.60321239432,
+          "max_abs_error": [
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "batch": 2048,
+          "setup_seconds": 0.2668543579998186,
+          "gpu_ms": 25.521612548828124,
+          "wall_ms": 25.526698199996645,
+          "positions_per_second": 80229.72591105688,
+          "max_abs_error": [
+            0.0,
+            0.0
+          ]
+        }
+      ],
+      "graph_replay_and_weight_refresh": "passed",
+      "peak_inference_allocated_mb": 368.6103515625,
+      "training_smoke": {
+        "batch": 256,
+        "loss": 5.473611831665039,
+        "gradient_norm": 1.6903440952301025,
+        "seconds": 0.7596406450002178,
+        "status": "passed"
+      }
+    }
+  ]
+}

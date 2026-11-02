@@ -1,0 +1,679 @@
+{
+  "torch_version": "2.11.0+cu130",
+  "device": "NVIDIA L4",
+  "cudnn_benchmark": false,
+  "teacher": "/content/teacher.pt",
+  "models": [
+    {
+      "model": "resnet-128x10",
+      "config": {
+        "planes": 19,
+        "channels": 128,
+        "blocks": 10,
+        "drop_planes": []
+      },
+      "parameters": 3188012,
+      "inference": [
+        {
+          "batch": 256,
+          "chunk": 0,
+          "ms": 3.1118617333352936,
+          "positions_per_second": 82265.86588267828
+        },
+        {
+          "batch": 512,
+          "chunk": 0,
+          "ms": 6.361784833332725,
+          "positions_per_second": 80480.55905904954
+        },
+        {
+          "batch": 768,
+          "chunk": 0,
+          "ms": 10.600469433332668,
+          "positions_per_second": 72449.62167289128
+        },
+        {
+          "batch": 1024,
+          "chunk": 0,
+          "ms": 16.00867773333145,
+          "positions_per_second": 63965.30788223337
+        },
+        {
+          "batch": 256,
+          "chunk": 64,
+          "ms": 3.5863565999989078,
+          "positions_per_second": 71381.6356131674
+        },
+        {
+          "batch": 512,
+          "chunk": 64,
+          "ms": 7.552172599995781,
+          "positions_per_second": 67795.06072203461
+        },
+        {
+          "batch": 768,
+          "chunk": 64,
+          "ms": 11.35563343333009,
+          "positions_per_second": 67631.63010755804
+        },
+        {
+          "batch": 1024,
+          "chunk": 64,
+          "ms": 15.674432466660923,
+          "positions_per_second": 65329.31907920872
+        },
+        {
+          "batch": 256,
+          "chunk": 128,
+          "ms": 2.860241066665973,
+          "positions_per_second": 89502.945392783
+        },
+        {
+          "batch": 512,
+          "chunk": 128,
+          "ms": 6.0697482999936865,
+          "positions_per_second": 84352.75643975758
+        },
+        {
+          "batch": 768,
+          "chunk": 128,
+          "ms": 9.121571066665032,
+          "positions_per_second": 84196.02219695154
+        },
+        {
+          "batch": 1024,
+          "chunk": 128,
+          "ms": 12.416567333336085,
+          "positions_per_second": 82470.45842136722
+        },
+        {
+          "batch": 256,
+          "chunk": 256,
+          "ms": 3.2380383333323457,
+          "positions_per_second": 79060.21289641251
+        },
+        {
+          "batch": 512,
+          "chunk": 256,
+          "ms": 6.869630500000312,
+          "positions_per_second": 74530.93728985521
+        },
+        {
+          "batch": 768,
+          "chunk": 256,
+          "ms": 10.199325266664042,
+          "positions_per_second": 75299.09870706522
+        },
+        {
+          "batch": 1024,
+          "chunk": 256,
+          "ms": 13.99520320000344,
+          "positions_per_second": 73167.92656499252
+        },
+        {
+          "batch": 256,
+          "chunk": 512,
+          "ms": 2.9642155333325113,
+          "positions_per_second": 86363.49048214882
+        },
+        {
+          "batch": 512,
+          "chunk": 512,
+          "ms": 6.998791633335107,
+          "positions_per_second": 73155.48552143689
+        },
+        {
+          "batch": 768,
+          "chunk": 512,
+          "ms": 10.395768766663119,
+          "positions_per_second": 73876.21033499729
+        },
+        {
+          "batch": 1024,
+          "chunk": 512,
+          "ms": 13.815444433331928,
+          "positions_per_second": 74119.94633552572
+        }
+      ],
+      "training": [
+        {
+          "batch": 1024,
+          "chunk": 0,
+          "teacher_weight": 1.0,
+          "ms_per_step": 83.52774720000298,
+          "losses": {
+            "policy": 0.0,
+            "value": 1.0374824583530426,
+            "teacher_kl": 1.1697165012359618,
+            "teacher_value": 0.1962273046374321
+          }
+        },
+        {
+          "batch": 1024,
+          "chunk": 0,
+          "teacher_weight": 0.0,
+          "ms_per_step": 66.63426039999649,
+          "losses": {
+            "policy": 0.0,
+            "value": 0.9757740914821624
+          }
+        }
+      ]
+    },
+    {
+      "model": "resnet-192x15",
+      "config": {
+        "planes": 19,
+        "channels": 192,
+        "blocks": 15,
+        "drop_planes": []
+      },
+      "parameters": 10602668,
+      "inference": [
+        {
+          "batch": 256,
+          "chunk": 0,
+          "ms": 8.910421399999299,
+          "positions_per_second": 28730.403255677687
+        },
+        {
+          "batch": 512,
+          "chunk": 0,
+          "ms": 19.581769633335472,
+          "positions_per_second": 26146.768631594212
+        },
+        {
+          "batch": 768,
+          "chunk": 0,
+          "ms": 30.649208266663663,
+          "positions_per_second": 25057.74352531427
+        },
+        {
+          "batch": 1024,
+          "chunk": 0,
+          "ms": 43.61918786667047,
+          "positions_per_second": 23475.907051044407
+        },
+        {
+          "batch": 256,
+          "chunk": 64,
+          "ms": 11.182757933336992,
+          "positions_per_second": 22892.385002525785
+        },
+        {
+          "batch": 512,
+          "chunk": 64,
+          "ms": 22.853282999994917,
+          "positions_per_second": 22403.783298885937
+        },
+        {
+          "batch": 768,
+          "chunk": 64,
+          "ms": 34.29582736666816,
+          "positions_per_second": 22393.39473543108
+        },
+        {
+          "batch": 1024,
+          "chunk": 64,
+          "ms": 45.65420330000052,
+          "positions_per_second": 22429.47912749993
+        },
+        {
+          "batch": 256,
+          "chunk": 128,
+          "ms": 10.421469700001277,
+          "positions_per_second": 24564.673445240514
+        },
+        {
+          "batch": 512,
+          "chunk": 128,
+          "ms": 21.40611340000002,
+          "positions_per_second": 23918.400806005237
+        },
+        {
+          "batch": 768,
+          "chunk": 128,
+          "ms": 32.00246716666394,
+          "positions_per_second": 23998.14976765303
+        },
+        {
+          "batch": 1024,
+          "chunk": 128,
+          "ms": 42.671799499999,
+          "positions_per_second": 23997.113128543457
+        },
+        {
+          "batch": 256,
+          "chunk": 256,
+          "ms": 9.040569499999643,
+          "positions_per_second": 28316.80017503434
+        },
+        {
+          "batch": 512,
+          "chunk": 256,
+          "ms": 18.369833566665267,
+          "positions_per_second": 27871.782188005145
+        },
+        {
+          "batch": 768,
+          "chunk": 256,
+          "ms": 27.53501156666213,
+          "positions_per_second": 27891.762389155916
+        },
+        {
+          "batch": 1024,
+          "chunk": 256,
+          "ms": 36.789868200003184,
+          "positions_per_second": 27833.750162766588
+        },
+        {
+          "batch": 256,
+          "chunk": 512,
+          "ms": 8.988422199998544,
+          "positions_per_second": 28481.0831427168
+        },
+        {
+          "batch": 512,
+          "chunk": 512,
+          "ms": 19.551385066665716,
+          "positions_per_second": 26187.40300261071
+        },
+        {
+          "batch": 768,
+          "chunk": 512,
+          "ms": 28.775804699997327,
+          "positions_per_second": 26689.08855918359
+        },
+        {
+          "batch": 1024,
+          "chunk": 512,
+          "ms": 38.99669726666465,
+          "positions_per_second": 26258.633981174113
+        }
+      ],
+      "training": [
+        {
+          "batch": 1024,
+          "chunk": 0,
+          "teacher_weight": 1.0,
+          "ms_per_step": 209.32202644999052,
+          "losses": {
+            "policy": 0.0,
+            "value": 1.0335637092590333,
+            "teacher_kl": 1.0093624949455262,
+            "teacher_value": 0.2301696479320526
+          }
+        },
+        {
+          "batch": 1024,
+          "chunk": 0,
+          "teacher_weight": 0.0,
+          "ms_per_step": 193.26894765000588,
+          "losses": {
+            "policy": 0.0,
+            "value": 0.9888407796621322
+          }
+        }
+      ]
+    },
+    {
+      "model": "resnet-256x20",
+      "config": {
+        "planes": 19,
+        "channels": 256,
+        "blocks": 20,
+        "drop_planes": []
+      },
+      "parameters": 25024684,
+      "inference": [
+        {
+          "batch": 256,
+          "chunk": 0,
+          "ms": 17.32695873333796,
+          "positions_per_second": 14774.664379354861
+        },
+        {
+          "batch": 512,
+          "chunk": 0,
+          "ms": 38.40621216666781,
+          "positions_per_second": 13331.176679911105
+        },
+        {
+          "batch": 768,
+          "chunk": 0,
+          "ms": 61.28850583333284,
+          "positions_per_second": 12530.897752483788
+        },
+        {
+          "batch": 1024,
+          "chunk": 0,
+          "ms": 85.5256413666666,
+          "positions_per_second": 11973.01749085861
+        },
+        {
+          "batch": 256,
+          "chunk": 64,
+          "ms": 19.81292329999936,
+          "positions_per_second": 12920.859588650823
+        },
+        {
+          "batch": 512,
+          "chunk": 64,
+          "ms": 40.62264479999461,
+          "positions_per_second": 12603.807618160497
+        },
+        {
+          "batch": 768,
+          "chunk": 64,
+          "ms": 60.66876376667096,
+          "positions_per_second": 12658.903071664517
+        },
+        {
+          "batch": 1024,
+          "chunk": 64,
+          "ms": 80.87268276666843,
+          "positions_per_second": 12661.877471709646
+        },
+        {
+          "batch": 256,
+          "chunk": 128,
+          "ms": 18.600337599999268,
+          "positions_per_second": 13763.191050898457
+        },
+        {
+          "batch": 512,
+          "chunk": 128,
+          "ms": 37.812772266670436,
+          "positions_per_second": 13540.398370930756
+        },
+        {
+          "batch": 768,
+          "chunk": 128,
+          "ms": 56.673858233330066,
+          "positions_per_second": 13551.221390964642
+        },
+        {
+          "batch": 1024,
+          "chunk": 128,
+          "ms": 75.5664268666654,
+          "positions_per_second": 13550.991392074367
+        },
+        {
+          "batch": 256,
+          "chunk": 256,
+          "ms": 17.288047033336323,
+          "positions_per_second": 14807.918992027175
+        },
+        {
+          "batch": 512,
+          "chunk": 256,
+          "ms": 35.03917706667229,
+          "positions_per_second": 14612.215321888702
+        },
+        {
+          "batch": 768,
+          "chunk": 256,
+          "ms": 52.58956626666228,
+          "positions_per_second": 14603.657236984147
+        },
+        {
+          "batch": 1024,
+          "chunk": 256,
+          "ms": 70.42269893333166,
+          "positions_per_second": 14540.766194851589
+        },
+        {
+          "batch": 256,
+          "chunk": 512,
+          "ms": 17.281742066666084,
+          "positions_per_second": 14813.321423989195
+        },
+        {
+          "batch": 512,
+          "chunk": 512,
+          "ms": 38.05358543333265,
+          "positions_per_second": 13454.711144025836
+        },
+        {
+          "batch": 768,
+          "chunk": 512,
+          "ms": 55.4418847333333,
+          "positions_per_second": 13852.342929789607
+        },
+        {
+          "batch": 1024,
+          "chunk": 512,
+          "ms": 75.6595872666594,
+          "positions_per_second": 13534.305922010255
+        }
+      ],
+      "training": [
+        {
+          "batch": 1024,
+          "chunk": 0,
+          "teacher_weight": 1.0,
+          "ms_per_step": 374.9440826499949,
+          "losses": {
+            "policy": 0.0,
+            "value": 1.028635185956955,
+            "teacher_kl": 1.2073962807655334,
+            "teacher_value": 0.25887085497379303
+          }
+        },
+        {
+          "batch": 1024,
+          "chunk": 0,
+          "teacher_weight": 0.0,
+          "ms_per_step": 360.1096663000021,
+          "losses": {
+            "policy": 0.0,
+            "value": 0.9979287892580032
+          }
+        }
+      ]
+    },
+    {
+      "model": "transformer-256x4",
+      "config": {
+        "architecture": "transformer",
+        "planes": 19,
+        "width": 256,
+        "blocks": 4,
+        "heads": 4,
+        "expansion": 2,
+        "drop_planes": []
+      },
+      "parameters": 2185864,
+      "inference": [
+        {
+          "batch": 256,
+          "chunk": 0,
+          "ms": 4.371644433331312,
+          "positions_per_second": 58559.19983980057
+        },
+        {
+          "batch": 512,
+          "chunk": 0,
+          "ms": 10.16520316666932,
+          "positions_per_second": 50367.90623908005
+        },
+        {
+          "batch": 768,
+          "chunk": 0,
+          "ms": 17.145178066668148,
+          "positions_per_second": 44793.93547349997
+        },
+        {
+          "batch": 1024,
+          "chunk": 0,
+          "ms": 22.237044700000297,
+          "positions_per_second": 46049.284597606005
+        },
+        {
+          "batch": 256,
+          "chunk": 64,
+          "ms": 3.2318462333326656,
+          "positions_per_second": 79211.68939278832
+        },
+        {
+          "batch": 512,
+          "chunk": 64,
+          "ms": 6.782740333331579,
+          "positions_per_second": 75485.71445142046
+        },
+        {
+          "batch": 768,
+          "chunk": 64,
+          "ms": 10.037035400000605,
+          "positions_per_second": 76516.61764587916
+        },
+        {
+          "batch": 1024,
+          "chunk": 64,
+          "ms": 13.714756100004402,
+          "positions_per_second": 74664.10576559005
+        },
+        {
+          "batch": 256,
+          "chunk": 128,
+          "ms": 3.445162866667791,
+          "positions_per_second": 74307.08210541196
+        },
+        {
+          "batch": 512,
+          "chunk": 128,
+          "ms": 6.93853066666937,
+          "positions_per_second": 73790.83909789362
+        },
+        {
+          "batch": 768,
+          "chunk": 128,
+          "ms": 10.460311933328134,
+          "positions_per_second": 73420.3726327736
+        },
+        {
+          "batch": 1024,
+          "chunk": 128,
+          "ms": 14.47958576666982,
+          "positions_per_second": 70720.25515792854
+        },
+        {
+          "batch": 256,
+          "chunk": 256,
+          "ms": 4.458135766670542,
+          "positions_per_second": 57423.1053961795
+        },
+        {
+          "batch": 512,
+          "chunk": 256,
+          "ms": 9.328530800000104,
+          "positions_per_second": 54885.38452378742
+        },
+        {
+          "batch": 768,
+          "chunk": 256,
+          "ms": 14.579404033330926,
+          "positions_per_second": 52677.05032690123
+        },
+        {
+          "batch": 1024,
+          "chunk": 256,
+          "ms": 18.3840638666652,
+          "positions_per_second": 55700.41572020222
+        },
+        {
+          "batch": 256,
+          "chunk": 512,
+          "ms": 4.489957999999206,
+          "positions_per_second": 57016.123536132254
+        },
+        {
+          "batch": 512,
+          "chunk": 512,
+          "ms": 10.636758666661686,
+          "positions_per_second": 48134.96442339512
+        },
+        {
+          "batch": 768,
+          "chunk": 512,
+          "ms": 15.518559433333698,
+          "positions_per_second": 49489.12966433884
+        },
+        {
+          "batch": 1024,
+          "chunk": 512,
+          "ms": 21.378515266671155,
+          "positions_per_second": 47898.555499614304
+        }
+      ],
+      "training": [
+        {
+          "batch": 1024,
+          "chunk": 0,
+          "teacher_weight": 1.0,
+          "ms_per_step": 144.24355255000592,
+          "losses": {
+            "policy": 0.0,
+            "value": 1.0279606342315675,
+            "teacher_kl": 2.0542616486549377,
+            "teacher_value": 0.2713253676891327
+          }
+        },
+        {
+          "batch": 1024,
+          "chunk": 0,
+          "teacher_weight": 0.0,
+          "ms_per_step": 131.27888889999895,
+          "losses": {
+            "policy": 0.0,
+            "value": 0.999067360162735
+          }
+        },
+        {
+          "batch": 1024,
+          "chunk": 128,
+          "teacher_weight": 1.0,
+          "ms_per_step": 105.13759325000365,
+          "losses": {
+            "policy": 0.0,
+            "value": 1.0167879045009613,
+            "teacher_kl": 1.4500657200813294,
+            "teacher_value": 0.28999061286449435
+          }
+        },
+        {
+          "batch": 1024,
+          "chunk": 128,
+          "teacher_weight": 0.0,
+          "ms_per_step": 96.0824283000079,
+          "losses": {
+            "policy": 0.0,
+            "value": 1.0003846675157546
+          }
+        },
+        {
+          "batch": 1024,
+          "chunk": 256,
+          "teacher_weight": 1.0,
+          "ms_per_step": 119.55786094999894,
+          "losses": {
+            "policy": 0.0,
+            "value": 1.010710707306862,
+            "teacher_kl": 1.1736284017562866,
+            "teacher_value": 0.28894617035984993
+          }
+        },
+        {
+          "batch": 1024,
+          "chunk": 256,
+          "teacher_weight": 0.0,
+          "ms_per_step": 102.95142035000708,
+          "losses": {
+            "policy": 0.0,
+            "value": 1.0074148327112198
+          }
+        }
+      ]
+    }
+  ]
+}

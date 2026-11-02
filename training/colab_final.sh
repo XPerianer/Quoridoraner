@@ -11,11 +11,15 @@
 # Set SNAPSHOT_STATE=0 to keep only the models.
 # Each hourly model also plays 200 games against the previous one (the first against pre-model.pt,
 # kept as model-h000-it00000.pt); results are `prev_eval` in metrics.json.
+# A follow-up phase from a kept model at a lower learning rate (resuming keeps the saved lr):
+#   INIT=/content/drive/MyDrive/quoridor-final/model-h013-it00451.pt LR=1e-4 \
+#   QUORIDOR_SNAPSHOTS=/content/drive/MyDrive/quoridor-final-lr1e-4 QUORIDOR_RUN=/content/final-lr1e-4 \
+#   bash colab_final.sh 12
 set -euo pipefail
 cd /content/q
 HOURS=${1:-60}
 SNAP=${QUORIDOR_SNAPSHOTS:-/content/drive/MyDrive/quoridor-final}
-R=/content/final
+R=${QUORIDOR_RUN:-/content/final}
 if [ -z "${QUORIDOR_SNAPSHOTS:-}" ] && [ ! -d /content/drive/MyDrive ]; then
     echo 'Mount Google Drive before starting, or set QUORIDOR_SNAPSHOTS to a persistent folder.' >&2
     exit 1
@@ -27,6 +31,8 @@ if [ ! -f "$R/rl/state.pt" ]; then
     LATEST=$(ls "$SNAP"/state-latest.pt.gz 2>/dev/null || ls "$SNAP"/state-h*.pt.gz 2>/dev/null | sort | tail -n 1 || true)
     if [ -n "$LATEST" ]; then
         START=(--resume-from "$LATEST")
+    elif [ -n "${INIT:-}" ]; then
+        START=(--init "$INIT")
     else
         # Seeds a quarter of the replay buffer, as in the ablations; only needed for a fresh start.
         [ -f "$R/gen.npz" ] || python training/az.py gen --out "$R/gen.npz" --games 30000 --parallel 1000 >> "$SNAP/gen.log" 2>&1
@@ -43,7 +49,7 @@ COPIER=$!
 trap 'kill $COPIER 2>/dev/null; cp "$LOG" "$SNAP/rl.log"' EXIT
 python training/az.py rl "${START[@]}" --out "$R/rl" --iterations 100000 --budget-minutes $((HOURS * 60)) \
     --games 2048 --negamax-fraction "${NEGAMAX_FRACTION:-0}" --simulations 200 --playout-cap randomized-40-400 \
-    --optimizer adamw --schedule none --batch-size 1024 --lr 3e-4 --replay 600000 --checkpoint-seconds 600 \
+    --optimizer adamw --schedule none --batch-size 1024 --lr "${LR:-3e-4}" --replay 600000 --checkpoint-seconds 600 \
     --eval-every 5 --eval-pairs 20 --eval-simulations 200 \
     --snapshot-dir "$SNAP" --snapshot-minutes 60 --latest-minutes 20 --prev-eval-pairs 100 "${STATE[@]}" >> "$LOG" 2>&1
 cp "$R/rl/model.pt" "$R/rl/metrics.json" "$SNAP/"

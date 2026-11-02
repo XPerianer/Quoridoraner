@@ -1,0 +1,30 @@
+[
+  {
+    "config": {
+      "architecture": "transformer",
+      "planes": 19,
+      "width": 192,
+      "blocks": 6,
+      "heads": 6,
+      "expansion": 2,
+      "drop_planes": []
+    },
+    "chunk": 256,
+    "gradient_relative_l2_error": 0.002098369452204565,
+    "status": "passed"
+  },
+  {
+    "config": {
+      "architecture": "transformer",
+      "planes": 19,
+      "width": 256,
+      "blocks": 4,
+      "heads": 4,
+      "expansion": 2,
+      "drop_planes": []
+    },
+    "chunk": 128,
+    "gradient_relative_l2_error": 0.002228623329615991,
+    "status": "passed"
+  }
+]

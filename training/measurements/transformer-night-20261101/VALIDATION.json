@@ -1,0 +1,22 @@
+{
+  "status": "passed",
+  "iterations": 357,
+  "rl_seconds": 43289.58418607712,
+  "rl_hours": 12.024884496132533,
+  "games": 733187,
+  "optimizer_updates": 178379,
+  "primary_match_files": 14,
+  "total_match_games": 6400,
+  "paired_openings_and_bootstrap": "verified",
+  "final_model_equals_resumable_state": true,
+  "replay_rows": 600000,
+  "model_sha256": {
+    "stage-h001.pt": "978f996b573300b5cbbcf12d0bcc6e0c0c08d164798546eb10a2f49f6224f22e",
+    "stage-h002.pt": "d3b16612730a5a86736227c6a9c950a160f828df92460ba6fd3643c292426f81",
+    "stage-h004.pt": "813ce5695cfb6dd2159af5e5ae6d6f44961c1b2c8b07008f10257fd222859658",
+    "stage-h008.pt": "8979baa7d5f0e48d516dbef5ab62377de9927b5b2df52072894530383ba46769",
+    "stage-h012.pt": "b16c7684400b441568c9bb52ed7f6602d4dd4fa9b903a3bc3c60c7ca1300d634"
+  },
+  "progress_checks": "verified",
+  "total_match_files": 16
+}

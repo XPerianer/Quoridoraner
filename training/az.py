@@ -269,9 +269,10 @@ class Engine:
         self.check(self.lib.az_cache(self.pool, self.cache_limit))
         self.check(self.lib.az_start(self.pool))
 
-    def inference_net(self, model):
+    def inference_net(self, model, key=None):
         """Compiled search copy of `model`: BatchNorm folded into the convolutions, bf16 channels-last weights,
-        replayed as CUDA graphs. One copy per architecture; later networks are loaded into it in place."""
+        replayed as CUDA graphs. One copy per architecture; later networks are loaded into it in place.
+        A separate `key` keeps a frozen network (e.g. a teacher) from sharing a copy with the searched one."""
         net = copy.deepcopy(model).eval()
         for parent in net.modules():
             names = list(parent._modules)
@@ -280,9 +281,16 @@ class Engine:
                     parent._modules[a] = torch.nn.utils.fusion.fuse_conv_bn_eval(parent._modules[a], parent._modules[b])
                     parent._modules[b] = nn.Identity()
         net = net.to(torch.bfloat16, memory_format=torch.channels_last)
-        key = json.dumps(model.config, sort_keys=True)
+        key = key or json.dumps(model.config, sort_keys=True)
         if key not in self.inference:
-            self.inference[key] = (net, Graphs(torch.compile(net, dynamic=True)))
+            graph = Graphs(torch.compile(net, dynamic=True))
+            # L4 measurements favor small transformer inference batches. Opt in
+            # without changing checkpoint architecture or training batch size.
+            variable = 'AZ_TRANSFORMER_INFERENCE_BATCH' if isinstance(model, TransformerNet) else 'AZ_RESNET_INFERENCE_BATCH'
+            chunk = int(os.environ.get(variable, '0'))
+            if chunk < 0:
+                raise ValueError(f'{variable} must be nonnegative')
+            self.inference[key] = (net, Microbatch(graph, chunk) if chunk else graph)
         else:
             with torch.no_grad():
                 self.inference[key][0].load_state_dict(net.state_dict())
@@ -380,6 +388,21 @@ class Engine:
         return out if moves else out[:2]
 
 
+class Microbatch:
+    """Split inference while preserving outputs from reusable graph buffers."""
+
+    def __init__(self, net, batch):
+        if batch < 1:
+            raise ValueError('Microbatch size must be positive')
+        self.net, self.batch = net, batch
+
+    def __call__(self, x):
+        if len(x) <= self.batch:
+            return self.net(x)
+        parts = [tuple(t.clone() for t in self.net(chunk)) for chunk in x.split(self.batch)]
+        return tuple(torch.cat([part[i] for part in parts]) for i in range(len(parts[0])))
+
+
 class Graphs:
     """CUDA graph replay of a network, one graph per batch size. Queueing a batch then costs
     ~0.5 ms of CPU instead of ~3 ms of kernel launches (L4, 128x10). Graphs replay in stream
@@ -452,9 +475,72 @@ class Net(nn.Module):
         return logits, self.value_head(h).squeeze(1).tanh()
 
 
+class TransformerBlock(nn.Module):
+    """Bidirectional pre-LayerNorm attention, with no dropout or causal mask."""
+    def __init__(self, width, heads, expansion):
+        super().__init__()
+        self.heads = heads
+        self.norm1 = nn.LayerNorm(width)
+        self.qkv = nn.Linear(width, 3 * width)
+        self.proj = nn.Linear(width, width)
+        self.norm2 = nn.LayerNorm(width)
+        self.mlp = nn.Sequential(nn.Linear(width, expansion * width), nn.GELU(),
+                                 nn.Linear(expansion * width, width))
+
+    def forward(self, x):
+        batch, tokens, width = x.shape
+        qkv = self.qkv(self.norm1(x)).reshape(batch, tokens, 3, self.heads, width // self.heads)
+        q, k, v = qkv.permute(2, 0, 3, 1, 4).unbind(0)
+        attention = F.scaled_dot_product_attention(q, k, v)
+        x = x + self.proj(attention.transpose(1, 2).reshape(batch, tokens, width))
+        return x + self.mlp(self.norm2(x))
+
+
+class TransformerNet(nn.Module):
+    """One token per square; canonical action ordering matches the residual network."""
+    def __init__(self, planes=19, width=192, blocks=6, heads=6, expansion=2, drop_planes=()):
+        super().__init__()
+        if width <= 0 or heads <= 0 or width % heads or blocks < 1 or expansion < 1:
+            raise ValueError('Positive width divisible by heads, blocks and expansion are required')
+        self.config = dict(architecture='transformer', planes=planes, width=width, blocks=blocks,
+                           heads=heads, expansion=expansion, drop_planes=list(drop_planes))
+        mask = torch.ones(planes)
+        mask[list(drop_planes)] = 0
+        self.register_buffer('mask', mask[None, :, None, None], persistent=False)
+        self.stem = nn.Linear(planes, width)
+        self.position = nn.Parameter(torch.empty(1, 81, width))
+        nn.init.trunc_normal_(self.position, std=0.02)
+        self.tower = nn.Sequential(*(TransformerBlock(width, heads, expansion) for _ in range(blocks)))
+        self.norm = nn.LayerNorm(width)
+        self.policy_head = nn.Sequential(nn.Linear(width, 32), nn.ReLU(), nn.Linear(32, 3))
+        self.value_head = nn.Sequential(nn.Linear(width, 4), nn.ReLU(), nn.Flatten(),
+                                        nn.Linear(4 * 81, 128), nn.ReLU(), nn.Linear(128, 1))
+
+    def forward(self, x):
+        x = model_inputs(x, self.config['planes'])
+        tokens = (x * self.mask).flatten(2).transpose(1, 2)
+        h = self.norm(self.tower(self.stem(tokens) + self.position))
+        p = self.policy_head(h).transpose(1, 2).reshape(-1, 3, 9, 9)
+        logits = torch.cat((p[:, 0].flatten(1), p[:, 1, :8, :8].flatten(1), p[:, 2, :8, :8].flatten(1)), 1)
+        return logits, self.value_head(h).squeeze(1).tanh()
+
+
+def model_from_config(config):
+    config = dict(config)
+    architecture = config.pop('architecture', 'resnet')
+    if architecture == 'transformer':
+        return TransformerNet(**config)
+    if architecture == 'resnet':
+        return Net(**config)
+    raise ValueError(f'Unknown architecture {architecture!r}')
+
+
 def model_from_args(args, planes):
     if getattr(args, 'feature_set', 'full') == 'simplified':
         planes = len(SIMPLIFIED_PLANES)
+    if getattr(args, 'architecture', 'resnet') == 'transformer':
+        return TransformerNet(planes, args.width, args.blocks, args.heads, args.expansion,
+                              getattr(args, 'drop_planes', ()))
     return Net(planes, args.channels, args.blocks, getattr(args, 'drop_planes', ()))
 
 
@@ -515,7 +601,7 @@ def save_model(model, path, **extra):
 
 def load_model(path, device):
     saved = torch.load(path, map_location='cpu', weights_only=False)
-    model = Net(**saved['config'])
+    model = model_from_config(saved['config'])
     model.load_state_dict(saved['state'])
     return model.to(device).eval(), saved
 
@@ -587,9 +673,56 @@ class Replay:
         return replay
 
 
-def train_steps(model, optimizer, replay, engine, steps, batch_size, device, rng, value_weight=1.0, scheduler=None):
+def backward_batch(model, x, target, mask, value, device, value_weight=1.0, microbatch=0, teacher=None):
+    """Accumulate full-batch mean gradients, including sparse policy supervision.
+
+    `teacher` = (policy probabilities, values, policy weight, value weight) of a frozen network on the
+    same rows: adds the weighted cross-entropy to its policy and squared error to its value on every row."""
+    if microbatch < 0:
+        raise ValueError('Training microbatch must be nonnegative')
+    denominator = mask.sum().clamp(min=1)
+    policy_total, value_total = x.new_zeros(()), x.new_zeros(())
+    teacher_policy_total, teacher_value_total = x.new_zeros(()), x.new_zeros(())
+    for start in range(0, len(x), microbatch or len(x)):
+        stop = min(start + (microbatch or len(x)), len(x))
+        with torch.autocast('cuda', torch.bfloat16, enabled=device == 'cuda'):
+            logits, prediction = model(x[start:stop])
+        log_policy = logits.float().log_softmax(1)
+        rows = -(target[start:stop] * log_policy).sum(1)
+        policy_loss = (rows * mask[start:stop]).sum() / denominator
+        value_loss = (prediction.float() - value[start:stop]).square().sum() / len(x)
+        loss = policy_loss + value_weight * value_loss
+        if teacher is not None:
+            policy, values, policy_weight, value_weight_teacher = teacher
+            teacher_policy = -(policy[start:stop] * log_policy).sum() / len(x)
+            teacher_value = (prediction.float() - values[start:stop]).square().sum() / len(x)
+            loss = loss + policy_weight * teacher_policy + value_weight_teacher * teacher_value
+            teacher_policy_total = teacher_policy_total + teacher_policy.detach()
+            teacher_value_total = teacher_value_total + teacher_value.detach()
+        loss.backward()
+        policy_total = policy_total + policy_loss.detach()
+        value_total = value_total + value_loss.detach()
+    return policy_total, value_total, teacher_policy_total, teacher_value_total
+
+
+def kickstart_weight(args, seconds):
+    """Teacher loss weight after `seconds` of self-play and training: --teacher-weight, decaying
+    linearly to zero at --teacher-hours."""
+    if not getattr(args, 'teacher', None):
+        return 0.0
+    return args.teacher_weight * max(0.0, 1 - seconds / (3600 * args.teacher_hours))
+
+
+def train_steps(model, optimizer, replay, engine, steps, batch_size, device, rng, value_weight=1.0, scheduler=None,
+                teacher=None, teacher_weight=0.0, teacher_value=True):
+    """`teacher`: frozen network callable on the training features; its policy (and value, with
+    `teacher_value`) are extra targets with weight `teacher_weight` (kickstarting)."""
     model.train()
+    microbatch = int(os.environ.get('AZ_TRANSFORMER_TRAIN_BATCH', '0')) if isinstance(model, TransformerNet) else 0
     totals = dict(policy=0.0, value=0.0)
+    guided = teacher is not None and teacher_weight > 0
+    if guided:
+        totals.update(teacher_kl=0.0, teacher_value=0.0)
     for _ in range(steps):
         idx = rng.integers(0, replay.size, batch_size)
         mirror = rng.integers(0, 2, batch_size).astype(np.uint8)
@@ -602,20 +735,26 @@ def train_steps(model, optimizer, replay, engine, steps, batch_size, device, rng
         target = torch.from_numpy(policy).to(device)
         mask = torch.from_numpy(replay.has_policy[idx]).to(device)
         value = torch.from_numpy(replay.value[idx]).to(device)
-        with torch.autocast('cuda', torch.bfloat16, enabled=device == 'cuda'):
-            logits, prediction = model(x)
-        logits, prediction = logits.float(), prediction.float()
-        rows = -(target * logits.log_softmax(1)).sum(1)
-        policy_loss = (rows * mask).sum() / mask.sum().clamp(min=1)
-        value_loss = (prediction - value).square().mean()
+        guide = None
+        if guided:
+            with torch.no_grad():
+                # The teacher sees the same mirrored features, so its moves share the student's frame.
+                logits, values = teacher(x)
+                policy = logits.float().softmax(1)
+                guide = (policy, values.float().clone(), teacher_weight, teacher_weight if teacher_value else 0.0)
+                entropy = -torch.special.xlogy(policy, policy).sum(1).mean()
         optimizer.zero_grad(set_to_none=True)
-        (policy_loss + value_weight * value_loss).backward()
+        policy_loss, value_loss, teacher_policy, teacher_values = backward_batch(
+            model, x, target, mask, value, device, value_weight, microbatch, guide)
         nn.utils.clip_grad_norm_(model.parameters(), 5)
         optimizer.step()
         if scheduler is not None:
             scheduler.step()
         totals['policy'] += policy_loss.item()
         totals['value'] += value_loss.item()
+        if guided:
+            totals['teacher_kl'] += (teacher_policy - entropy).item()
+            totals['teacher_value'] += teacher_values.item()
     model.eval()
     return {k: v / max(steps, 1) for k, v in totals.items()}
 
@@ -1228,6 +1367,17 @@ def cmd_rl(args):
     if device == 'cuda':
         # About 25% faster training steps on an L4; parameters keep their identity.
         model.to(memory_format=torch.channels_last)
+    teacher = None
+    if args.teacher:
+        if args.teacher_hours <= 0:
+            raise ValueError('--teacher-hours must be positive')
+        frozen, _ = load_model(args.teacher, device)
+        frozen.requires_grad_(False)
+        if device == 'cuda':
+            compiled = engine.inference_net(frozen, key='teacher')
+            teacher = lambda x: compiled(x.to(torch.bfloat16, memory_format=torch.channels_last))
+        else:
+            teacher = frozen
     if not state_path.exists():
         for group in optimizer.param_groups:
             group['lr'] = args.lr
@@ -1314,8 +1464,10 @@ def cmd_rl(args):
                 rows += 1
         played = time.time() - t0
         steps = max(1, int(rows * args.reuse / args.batch_size))
+        weight = kickstart_weight(args, spent())
         losses = train_steps(model, optimizer, replay, engine, steps, args.batch_size, device, nprng,
-                             scheduler=scheduler)
+                             scheduler=scheduler, teacher=teacher, teacher_weight=weight,
+                             teacher_value=args.teacher_value)
         vs = [g for g in games if g.learner >= 0]
         selfplay = [g for g in games if g.learner < 0]
         row = dict(iteration=iteration, games=len(games), carried=len(carried), positions=rows, replay=replay.size,
@@ -1329,6 +1481,8 @@ def cmd_rl(args):
                    policy_rows=sum(getattr(g, 'policy_rows', 0) for g in games),
                    value_only_rows=sum(getattr(g, 'value_only_rows', 0) for g in games),
                    play_seconds=played, seconds=time.time() - t0, search_stats=dict(engine.stats))
+        if teacher is not None:
+            row['teacher_weight'] = weight
         if args.eval_every and iteration % args.eval_every == 0:
             t1 = time.time()
             engine.configure(args.cpuct, args.fpu, **search_settings(args, args.eval_search))
@@ -1367,6 +1521,17 @@ def cmd_rl(args):
                     row['prev_eval'].update(opponent=previous[-1].stem, search=args.eval_search,
                                             seconds=time.time() - t1)
                     print('prev_eval', json.dumps(row['prev_eval']), flush=True)
+                if args.anchor:
+                    # Head-to-head against a fixed model: a learning curve that adjacent snapshots cannot show.
+                    t1 = time.time()
+                    opponent, _ = load_model(args.anchor, device)
+                    engine.configure(args.cpuct, args.fpu, **search_settings(args, args.eval_search))
+                    row['anchor_eval'] = head_to_head(engine, model, opponent, device, args.anchor_pairs,
+                                                      args.eval_simulations, seed=args.anchor_seed)
+                    engine.configure(args.cpuct, args.fpu, **search_settings(args))
+                    row['anchor_eval'].update(opponent=Path(args.anchor).stem, search=args.eval_search,
+                                              seconds=time.time() - t1)
+                    print('anchor_eval', json.dumps(row['anchor_eval']), flush=True)
                 if args.snapshot_state:
                     temporary = snapshots / f'state-{name}.pt.gz.{os.getpid()}.tmp'
                     shutil.copyfile(snapshots / 'state-latest.pt.gz', temporary)
@@ -1453,8 +1618,12 @@ def main():
     common(p)
     p.add_argument('--data', required=True)
     p.add_argument('--out', required=True)
+    p.add_argument('--architecture', choices=('resnet', 'transformer'), default='resnet')
     p.add_argument('--feature-set', choices=('full', 'simplified'), default='full',
                    help='New models: full 19 channels or simplified 10; init/resume uses checkpoint encoding')
+    p.add_argument('--width', type=int, default=192, help='Transformer token width')
+    p.add_argument('--heads', type=int, default=6, help='Transformer attention heads')
+    p.add_argument('--expansion', type=int, default=2, help='Transformer MLP expansion')
     p.add_argument('--channels', type=int, default=64)
     p.add_argument('--blocks', type=int, default=6)
     p.add_argument('--epochs', type=float, default=4)
@@ -1471,8 +1640,12 @@ def main():
     p.add_argument('--out', required=True)
     p.add_argument('--init', help='Pretrained model.pt; omit to start from random weights')
     p.add_argument('--mix-data', help='Supervised .npz to seed a quarter of the replay buffer')
+    p.add_argument('--architecture', choices=('resnet', 'transformer'), default='resnet')
     p.add_argument('--feature-set', choices=('full', 'simplified'), default='full',
                    help='New models: full 19 channels or simplified 10; init/resume uses checkpoint encoding')
+    p.add_argument('--width', type=int, default=192, help='Transformer token width')
+    p.add_argument('--heads', type=int, default=6, help='Transformer attention heads')
+    p.add_argument('--expansion', type=int, default=2, help='Transformer MLP expansion')
     p.add_argument('--channels', type=int, default=64)
     p.add_argument('--blocks', type=int, default=6)
     p.add_argument('--iterations', type=int, default=50)
@@ -1512,6 +1685,15 @@ def main():
                    help='With --snapshot-state, also refresh state-latest.pt.gz this often (overwritten, not kept)')
     p.add_argument('--prev-eval-pairs', type=int, default=0,
                    help='At each kept snapshot, paired games against the previous kept model (heldout openings)')
+    p.add_argument('--teacher', help='Frozen model.pt whose policy and value are extra training targets (kickstarting)')
+    p.add_argument('--teacher-weight', type=float, default=1.0, help='Initial weight of the teacher targets')
+    p.add_argument('--teacher-hours', type=float, default=4.0,
+                   help='Self-play and training hours over which the teacher weight decays linearly to zero')
+    p.add_argument('--teacher-value', action=argparse.BooleanOptionalAction, default=True,
+                   help="Also regress the teacher's value (else its policy only)")
+    p.add_argument('--anchor', help='Fixed model.pt each hourly snapshot plays (--anchor-pairs paired openings)')
+    p.add_argument('--anchor-pairs', type=int, default=100)
+    p.add_argument('--anchor-seed', type=int, default=731, help='Held-out opening seed of the anchor matches')
     p.add_argument('--resume-from', help='Archived state(.pt.gz) to start --out from when it has no state.pt')
     search(p)
     p.add_argument('--eval-search', choices=('puct', 'gumbel'), default='puct', help='Search for in-run evaluations')
@@ -1545,6 +1727,8 @@ def main():
 
     args = parser.parse_args()
     torch.set_num_threads(1)
+    # Opt-in cuDNN autotuning: on an L4, 256x20 inference +4% and training steps -4%; 128x10 inference +23%.
+    torch.backends.cudnn.benchmark = os.environ.get('AZ_CUDNN_BENCHMARK') == '1'
     if args.command in ('gen', 'pretrain', 'rl'):
         lock_path = Path(str(args.out) + '.lock') if args.command == 'gen' else Path(args.out) / 'run.lock'
         lock_path.parent.mkdir(parents=True, exist_ok=True)

@@ -1,0 +1,98 @@
+{
+  "torch_version": "2.11.0+cu130",
+  "device": "NVIDIA L4",
+  "sdpa_backend": "auto",
+  "models": [
+    {
+      "architecture": "transformer",
+      "config": {
+        "architecture": "transformer",
+        "planes": 19,
+        "width": 192,
+        "blocks": 6,
+        "heads": 6,
+        "expansion": 2,
+        "drop_planes": []
+      },
+      "parameters": 1850696,
+      "inference": [
+        {
+          "batch": 64,
+          "setup_seconds": 8.324659928999836,
+          "gpu_ms": 0.7565926361083984,
+          "wall_ms": 0.7579268400013461,
+          "positions_per_second": 84440.86766987474,
+          "max_abs_error": [
+            0.0078125,
+            0.001953125
+          ]
+        },
+        {
+          "batch": 256,
+          "setup_seconds": 0.014669612000034249,
+          "gpu_ms": 3.5890789794921876,
+          "wall_ms": 3.5902770599977885,
+          "positions_per_second": 71303.68930362095,
+          "max_abs_error": [
+            0.0087890625,
+            0.0032958984375
+          ]
+        },
+        {
+          "batch": 1024,
+          "setup_seconds": 0.014799326000002111,
+          "gpu_ms": 14.85854736328125,
+          "wall_ms": 14.860003780004263,
+          "positions_per_second": 68909.80750475329,
+          "max_abs_error": [
+            0.0107421875,
+            0.00390625
+          ]
+        },
+        {
+          "batch": 2048,
+          "setup_seconds": 0.03110591400013618,
+          "gpu_ms": 30.08909423828125,
+          "wall_ms": 30.091035260002172,
+          "positions_per_second": 68060.1375892925,
+          "max_abs_error": [
+            0.01123046875,
+            0.003662109375
+          ]
+        }
+      ],
+      "graph_replay_and_weight_refresh": "passed",
+      "eager_inference_attention_ops": [
+        "aten::scaled_dot_product_attention",
+        "aten::_scaled_dot_product_flash_attention",
+        "aten::_flash_attention_forward"
+      ],
+      "peak_inference_allocated_mb": 791.1103515625,
+      "training_smoke": {
+        "batch": 1024,
+        "loss": 5.426200866699219,
+        "gradient_norm": 0.3589708209037781,
+        "status": "passed"
+      },
+      "training": {
+        "batch": 1024,
+        "warmup_steps": 3,
+        "repeats": 10,
+        "wall_ms": 141.36395370001082,
+        "gpu_ms": 141.35657958984376,
+        "positions_per_second": 7243.713642680337,
+        "peak_allocated_mb": 2868.1630859375,
+        "includes": "forward, loss, backward, gradient clipping, AdamW; excludes data transfer"
+      },
+      "training_attention_ops": [
+        "aten::scaled_dot_product_attention",
+        "aten::_scaled_dot_product_flash_attention",
+        "aten::_flash_attention_forward",
+        "autograd::engine::evaluate_function: ScaledDotProductFlashAttentionBackward0",
+        "ScaledDotProductFlashAttentionBackward0",
+        "aten::_scaled_dot_product_flash_attention_backward",
+        "aten::_flash_attention_backward"
+      ]
+    }
+  ]
+}

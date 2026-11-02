@@ -1,0 +1,138 @@
+{
+  "torch_version": "2.11.0+cu130",
+  "device": "NVIDIA L4",
+  "config": {
+    "architecture": "transformer",
+    "planes": 19,
+    "width": 192,
+    "blocks": 6,
+    "heads": 6,
+    "expansion": 2,
+    "drop_planes": []
+  },
+  "model": null,
+  "repeats": 50,
+  "description": "Production CUDA graphs; chunked timings include output clones and concatenation; setup and host/device input transfer excluded.",
+  "measurements": [
+    {
+      "batch": 1024,
+      "chunk": null,
+      "setup_seconds": 0.025329675999955725,
+      "wall_ms": 25.564734080001017,
+      "gpu_ms": 25.56231689453125,
+      "positions_per_second": 40055.17901322756,
+      "max_abs_error": [
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "batch": 1024,
+      "chunk": 64,
+      "setup_seconds": 0.02676832499992088,
+      "wall_ms": 14.77147658000149,
+      "gpu_ms": 14.769951171875,
+      "positions_per_second": 69322.79210233814,
+      "max_abs_error": [
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "batch": 1024,
+      "chunk": 128,
+      "setup_seconds": 0.023247339000022293,
+      "wall_ms": 14.576677180000388,
+      "gpu_ms": 14.575308837890624,
+      "positions_per_second": 70249.20613628988,
+      "max_abs_error": [
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "batch": 1024,
+      "chunk": 256,
+      "setup_seconds": 0.03256902800001171,
+      "wall_ms": 18.09019027999966,
+      "gpu_ms": 18.088468017578126,
+      "positions_per_second": 56605.264187415676,
+      "max_abs_error": [
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "batch": 1024,
+      "chunk": 512,
+      "setup_seconds": 0.05204241900003126,
+      "wall_ms": 21.988804319998962,
+      "gpu_ms": 21.98708251953125,
+      "positions_per_second": 46569.153333574635,
+      "max_abs_error": [
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "batch": 2048,
+      "chunk": null,
+      "setup_seconds": 0.054776342999957706,
+      "wall_ms": 54.77325300000075,
+      "gpu_ms": 54.768046875,
+      "positions_per_second": 37390.5124824332,
+      "max_abs_error": [
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "batch": 2048,
+      "chunk": 64,
+      "setup_seconds": 0.0340220099999442,
+      "wall_ms": 29.769925739999508,
+      "gpu_ms": 29.76776123046875,
+      "positions_per_second": 68794.25961242031,
+      "max_abs_error": [
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "batch": 2048,
+      "chunk": 128,
+      "setup_seconds": 0.025246779999974933,
+      "wall_ms": 29.085959060000732,
+      "gpu_ms": 29.08416015625,
+      "positions_per_second": 70411.9811134723,
+      "max_abs_error": [
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "batch": 2048,
+      "chunk": 256,
+      "setup_seconds": 0.034758623999891824,
+      "wall_ms": 36.290864819998205,
+      "gpu_ms": 36.28884033203125,
+      "positions_per_second": 56432.93457342583,
+      "max_abs_error": [
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "batch": 2048,
+      "chunk": 512,
+      "setup_seconds": 0.044070310000051904,
+      "wall_ms": 44.1692941600013,
+      "gpu_ms": 44.16712890625,
+      "positions_per_second": 46367.052925528114,
+      "max_abs_error": [
+        0.0,
+        0.0
+      ]
+    }
+  ]
+}

@@ -1,0 +1,123 @@
+{
+  "torch_version": "2.11.0+cu130",
+  "device": "NVIDIA L4",
+  "sdpa_backend": "cudnn",
+  "models": [
+    {
+      "architecture": "transformer",
+      "config": {
+        "architecture": "transformer",
+        "planes": 19,
+        "width": 192,
+        "blocks": 6,
+        "heads": 6,
+        "expansion": 2,
+        "drop_planes": []
+      },
+      "parameters": 1850696,
+      "inference": [
+        {
+          "batch": 1024,
+          "setup_seconds": 8.388473661000035,
+          "gpu_ms": 25.82042724609375,
+          "wall_ms": 25.822920180000892,
+          "positions_per_second": 39654.69408037974,
+          "max_abs_error": [
+            0.0107421875,
+            0.002994537353515625
+          ]
+        }
+      ],
+      "graph_replay_and_weight_refresh": "passed",
+      "eager_inference_attention_ops": [
+        "aten::scaled_dot_product_attention",
+        "aten::_scaled_dot_product_cudnn_attention",
+        "aten::_cudnn_attention_forward"
+      ],
+      "peak_inference_allocated_mb": 413.61669921875,
+      "training_smoke": {
+        "batch": 1024,
+        "loss": 5.081516742706299,
+        "gradient_norm": 1.1139297485351562,
+        "status": "passed"
+      },
+      "training": {
+        "batch": 1024,
+        "warmup_steps": 3,
+        "repeats": 20,
+        "wall_ms": 141.16304270000342,
+        "gpu_ms": 141.15865478515624,
+        "positions_per_second": 7254.023294015999,
+        "peak_allocated_mb": 2859.673828125,
+        "includes": "forward, loss, backward, gradient clipping, AdamW; excludes data transfer"
+      },
+      "training_attention_ops": [
+        "aten::scaled_dot_product_attention",
+        "aten::_scaled_dot_product_cudnn_attention",
+        "aten::_cudnn_attention_forward",
+        "autograd::engine::evaluate_function: ScaledDotProductCudnnAttentionBackward0",
+        "ScaledDotProductCudnnAttentionBackward0",
+        "aten::_scaled_dot_product_cudnn_attention_backward",
+        "aten::_cudnn_attention_backward"
+      ]
+    },
+    {
+      "architecture": "transformer-h3",
+      "config": {
+        "architecture": "transformer",
+        "planes": 19,
+        "width": 192,
+        "blocks": 6,
+        "heads": 3,
+        "expansion": 2,
+        "drop_planes": []
+      },
+      "parameters": 1850696,
+      "inference": [
+        {
+          "batch": 1024,
+          "setup_seconds": 1.8074285080000436,
+          "gpu_ms": 24.42544189453125,
+          "wall_ms": 24.42786291999937,
+          "positions_per_second": 41919.34445324071,
+          "max_abs_error": [
+            0.009765625,
+            0.00299072265625
+          ]
+        }
+      ],
+      "graph_replay_and_weight_refresh": "passed",
+      "eager_inference_attention_ops": [
+        "aten::scaled_dot_product_attention",
+        "aten::_scaled_dot_product_cudnn_attention",
+        "aten::_cudnn_attention_forward"
+      ],
+      "peak_inference_allocated_mb": 430.86669921875,
+      "training_smoke": {
+        "batch": 1024,
+        "loss": 5.117316246032715,
+        "gradient_norm": 1.338046908378601,
+        "status": "passed"
+      },
+      "training": {
+        "batch": 1024,
+        "warmup_steps": 3,
+        "repeats": 20,
+        "wall_ms": 135.7216820500014,
+        "gpu_ms": 135.717333984375,
+        "positions_per_second": 7544.851968624636,
+        "peak_allocated_mb": 2862.14453125,
+        "includes": "forward, loss, backward, gradient clipping, AdamW; excludes data transfer"
+      },
+      "training_attention_ops": [
+        "aten::scaled_dot_product_attention",
+        "aten::_scaled_dot_product_cudnn_attention",
+        "aten::_cudnn_attention_forward",
+        "autograd::engine::evaluate_function: ScaledDotProductCudnnAttentionBackward0",
+        "ScaledDotProductCudnnAttentionBackward0",
+        "aten::_scaled_dot_product_cudnn_attention_backward",
+        "aten::_cudnn_attention_backward"
+      ]
+    }
+  ]
+}

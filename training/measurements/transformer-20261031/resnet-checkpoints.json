@@ -1,0 +1,87 @@
+[
+  {
+    "file": "model-h000-it00000.pt",
+    "config": {
+      "planes": 19,
+      "channels": 128,
+      "blocks": 10,
+      "drop_planes": []
+    },
+    "iteration": 0,
+    "spent_seconds": 0,
+    "totals": {
+      "games": 0,
+      "positions": 0,
+      "steps": 0,
+      "policy_rows": 0
+    }
+  },
+  {
+    "file": "model-h001-it00034.pt",
+    "config": {
+      "planes": 19,
+      "channels": 128,
+      "blocks": 10,
+      "drop_planes": []
+    },
+    "iteration": 34,
+    "spent_seconds": 3673.474452495575,
+    "totals": {
+      "games": 69750,
+      "positions": 4490929,
+      "steps": 17528,
+      "policy_rows": 1122191
+    }
+  },
+  {
+    "file": "model-h002-it00068.pt",
+    "config": {
+      "planes": 19,
+      "channels": 128,
+      "blocks": 10,
+      "drop_planes": []
+    },
+    "iteration": 68,
+    "spent_seconds": 7252.326065063477,
+    "totals": {
+      "games": 139534,
+      "positions": 8841027,
+      "steps": 34502,
+      "policy_rows": 2210241
+    }
+  },
+  {
+    "file": "model-h003-it00102.pt",
+    "config": {
+      "planes": 19,
+      "channels": 128,
+      "blocks": 10,
+      "drop_planes": []
+    },
+    "iteration": 102,
+    "spent_seconds": 10844.004237413406,
+    "totals": {
+      "games": 209320,
+      "positions": 13258244,
+      "steps": 51738,
+      "policy_rows": 3313206
+    }
+  },
+  {
+    "file": "model-h004-it00137.pt",
+    "config": {
+      "planes": 19,
+      "channels": 128,
+      "blocks": 10,
+      "drop_planes": []
+    },
+    "iteration": 137,
+    "spent_seconds": 14504.096156835556,
+    "totals": {
+      "games": 281211,
+      "positions": 17714242,
+      "steps": 69125,
+      "policy_rows": 4425197
+    }
+  }
+]
